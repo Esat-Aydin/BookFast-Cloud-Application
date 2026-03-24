@@ -1,0 +1,47 @@
+# .NET
+bin/
+obj/
+*.user
+*.userprefs
+*.suo
+*.sln.docstates
+.vs/
+ 
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+build/
+ 
+# Environment-specific files
+.env
+.env.local
+.env.*.local
+appsettings.Development.json
+ 
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
+ 
+# OS
+.DS_Store
+Thumbs.db
+ 
+# Docker
+docker-compose.override.yml
+ 
+# Logs
+logs/
+*.log
+ 
+# Coverage
+coverage/
+.nyc_output/
+ 
+# Build output
+dist/
+build/
+out/

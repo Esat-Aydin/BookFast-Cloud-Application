@@ -1,0 +1,19 @@
+ {
+   "name": "BookFast Dev Container",
+   "image": "mcr.microsoft.com/devcontainers/dotnet:8",
+   "features": {
+     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+     "ghcr.io/devcontainers/features/node:18": {}
+   },
+   "customizations": {
+     "vscode": {
+       "extensions": [
+         "ms-dotnettools.csharp",
+         "ms-vscode.extension-pack-for-node",
+         "esbenp.prettier-vscode"
+       ]
+     }
+   },
+   "forwardPorts": [3000, 5000, 1433],
+   "postCreateCommand": "dotnet restore src/api && npm install --prefix src/frontend"
+ }

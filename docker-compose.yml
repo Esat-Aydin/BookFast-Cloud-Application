@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    evironment:
+      ACCEPT_EULA: 'Y'
+      SA_PASSWORD: 'BookFast@2026'
+      MSSQL_PID: 'Developer'
+    ports:
+      - "1433:1433"
+    volumes:
+      - "sqldata:/var/opt/mssql"
+
+    api:
+      build:
+        context: ./src/api
+        dockerfile: Dockerfile
+      ports:
+        - "5000:5000"
+      environment:
+        ConnectionStrings__DefaultConnection: "Server=sql-server,1433;Database=BookFastDb;User Id=sa;Password=BookFast@2026;"
+      depends_on:
+        - sql-server
+
+   frontend:
+     build:
+       context: ./src/frontend
+       dockerfile: Dockerfile.dev
+     ports:
+       - "3000:3000"
+     depends_on:
+       - api
+
+   volumes:
+     sqldata:
