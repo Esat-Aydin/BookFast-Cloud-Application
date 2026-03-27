@@ -12,7 +12,7 @@
  ## Lokaal starten
  
  ### Prerequisites
- - Git, Docker Desktop, .NET 8 SDK, Node.js 18+
+ - Git, Docker Desktop, .NET 10 SDK, Node.js 22+
  
  ### Steps
  1. Clone de repo
