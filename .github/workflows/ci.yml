@@ -81,10 +81,22 @@ jobs:
         dotnet tool restore --verbosity detailed || true
       shell: bash
 
+    - name: "Diagnostic: show src/api files"
+      shell: bash
+      run: |
+        ls -la src/api
+        if [ -f src/api/dotnet-tools.json ]; then
+          cat src/api/dotnet-tools.json
+        else
+          echo "(no manifest found)"
+        fi
+    - name: Restore dotnet tools
+      working-directory: src/api
+      run: dotnet tool restore --verbosity detailed
     - name: Run .NET linter (dotnet format)
       run: |
         # Use explicit project path and --check for compatibility with installed dotnet-format
-        dotnet tool run dotnet-format -- BookFast.API\\BookFast.API.csproj --check
+        dotnet tool run dotnet-format -- BookFast.API/BookFast.API.csproj --check
       working-directory: src/api
       continue-on-error: false
 
