@@ -45,3 +45,10 @@ coverage/
 dist/
 build/
 out/
+
+# Local CI script
+scripts/run-local-ci.ps1
+
+# Test results
+**/TestResults/
+*.trx

@@ -30,6 +30,10 @@ jobs:
       run: npm ci
       working-directory: src/frontend
 
+    - name: Run linter
+      run: npm run lint
+      working-directory: src/frontend
+
     - name: Run tests
       run: npm test -- --run
       working-directory: src/frontend
@@ -59,6 +63,42 @@ jobs:
       name: Setup .NET
       with:
         dotnet-version: '10.0.x'
+
+    - name: Ensure dotnet-format is available
+      run: |
+        echo "-- DOTNET DIAGNOSTICS --"
+        dotnet --version
+        dotnet --list-sdks
+        echo "-- NUGET SOURCES --"
+        dotnet nuget list source --format Short || true
+        echo "-- TOOL MANIFEST CHECK --"
+        if [ ! -f src/api/dotnet-tools.json ]; then
+          echo "Manifest missing; creating and installing dotnet-format"
+          dotnet new tool-manifest --force --output src/api
+          dotnet tool install dotnet-format --local --version 5.1.250801 --verbosity minimal || true
+        fi
+        echo "-- RESTORING TOOLS --"
+        dotnet tool restore --verbosity detailed || true
+      shell: bash
+
+    - name: "Diagnostic: show src/api files"
+      shell: bash
+      run: |
+        ls -la src/api
+        if [ -f src/api/dotnet-tools.json ]; then
+          cat src/api/dotnet-tools.json
+        else
+          echo "(no manifest found)"
+        fi
+    - name: Restore dotnet tools
+      working-directory: src/api
+      run: dotnet tool restore --verbosity detailed
+    - name: Run .NET linter (dotnet format)
+      run: |
+        # Use explicit project path and --check for compatibility with installed dotnet-format
+        dotnet tool run dotnet-format -- BookFast.API/BookFast.API.csproj --check
+      working-directory: src/api
+      continue-on-error: false
 
     - name: Restore dependencies
       run: dotnet restore src/api/BookFast.API/BookFast.API.csproj
