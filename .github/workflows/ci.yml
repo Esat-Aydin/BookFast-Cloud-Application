@@ -75,7 +75,8 @@ jobs:
 
     - name: Run .NET linter (dotnet format)
       run: |
-        dotnet tool run dotnet-format --verify-no-changes
+        # Use explicit project path and --check for compatibility with installed dotnet-format
+        dotnet tool run dotnet-format -- BookFast.API\BookFast.API.csproj --check
       working-directory: src/api
       continue-on-error: false
 
