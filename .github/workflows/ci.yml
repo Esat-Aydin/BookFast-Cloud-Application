@@ -66,8 +66,9 @@ jobs:
     - name: Build API
       run: dotnet build src/api/BookFast.API/BookFast.API.csproj --configuration Release --no-restore
 
-    - name: Run API unit tests
-      run: dotnet test src/api/BookFast.API.Tests/BookFast.API.Tests.csproj --configuration Release --logger "trx;LogFileName=test-results.trx" --no-build
+    - name: Run API unit tests with coverage
+      run: |
+        dotnet test src/api/BookFast.API.Tests/BookFast.API.Tests.csproj --configuration Release --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger "trx;LogFileName=test-results.trx" --no-build
       continue-on-error: false
 
     - name: Publish test results
@@ -76,6 +77,53 @@ jobs:
       with:
         files: '**/test-results.trx'
         check_name: API Test Results
+
+    - name: Install reportgenerator (optional, needed to generate Cobertura/HTML)
+      run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+    - name: Generate coverage report (Cobertura + HTML)
+      run: |
+        reportgenerator -reports:src/api/BookFast.API.Tests/TestResults/**/coverage.cobertura.xml -targetdir:src/api/BookFast.API.Tests/coverage-report "-reporttypes:Html;Cobertura"
+
+    - name: Upload API coverage artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: api-coverage
+        path: |
+          src/api/BookFast.API.Tests/TestResults
+          src/api/BookFast.API.Tests/coverage-report
+        retention-days: 5
+
+    - name: Fail if coverage below threshold (70%)
+      shell: pwsh
+      run: |
+        $file = Get-ChildItem -Path src/api/BookFast.API.Tests/TestResults -Recurse -Filter "coverage.cobertura.xml" | Select-Object -First 1
+        if (-not $file) {
+          Write-Host "Coverage file not found. Failing job."; exit 1
+        }
+        $content = Get-Content $file.FullName -Raw
+        if ($content -match 'line-rate="([0-9.]+)"') {
+          $rate = [double]$matches[1]
+        } elseif ($content -match 'line-rate="([0-9.]+)"') {
+          $rate = [double]$matches[1]
+        } else {
+          # fallback: try match line-rate or branch-rate variations
+          if ($content -match 'lines-covered="(\d+)".+lines-valid="(\d+)"') {
+            $covered = [double]$matches[1]
+            $valid = [double]$matches[2]
+            $rate = ($covered / $valid)
+          } else {
+            Write-Host "Could not determine coverage rate from file."; exit 1
+          }
+        }
+        $percent = [math]::Round($rate * 100, 2)
+        Write-Host "Line coverage: $percent%"
+        if ($percent -lt 70) {
+          Write-Host "Coverage $percent% is below threshold 70%. Failing job."; exit 1
+        } else {
+          Write-Host "Coverage $percent% meets threshold."
+        }
 
     - name: Publish API for deployment
       run: dotnet publish src/api/BookFast.API/BookFast.API.csproj -c Release -o ./api-published
