@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document defines the non-database phase-1 governance rules for the BookFast API surface.
+This document defines the current governance rules for the BookFast API surface after the phase-1 API hardening and phase-2 GraphQL expansion work.
 
 ## API styles
 
@@ -17,6 +17,8 @@ This document defines the non-database phase-1 governance rules for the BookFast
 - GraphQL on `/graphql` is a read-oriented surface.
 - It is intended for consumer-driven query flexibility and aggregation.
 - Mutations are not the primary contract for the platform.
+- Explicit filters, sort orders, paging limits, and execution-cost limits are part of the contract, not incidental implementation details.
+- The detailed consumer guide and example queries live in `docs/api/graphql.md`.
 
 ## Versioning policy
 

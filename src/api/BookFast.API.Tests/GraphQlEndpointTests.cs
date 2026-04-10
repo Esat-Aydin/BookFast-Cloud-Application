@@ -15,6 +15,7 @@ namespace BookFast.API.Tests;
 public sealed class GraphQlEndpointTests
 {
     private static readonly Guid AmsterdamBoardRoomId = Guid.Parse("8C2D3CFD-2F3A-4C72-9F5B-7397C1D4B901");
+    private static readonly Guid UtrechtCollaborationHubId = Guid.Parse("A8B70B66-676C-4A1D-9EA6-865A0B918A72");
 
     [Fact]
     public async Task PostRoomsQuery_ShouldApplyFilteringAndPaging()
@@ -43,6 +44,35 @@ public sealed class GraphQlEndpointTests
         Assert.Equal(1, rooms.GetArrayLength());
         Assert.Equal("AMS-BOARD-01", rooms[0].GetProperty("code").GetString());
         Assert.Equal(12, rooms[0].GetProperty("capacity").GetInt32());
+    }
+
+    [Fact]
+    public async Task PostRoomsQuery_ShouldApplyExplicitSorting()
+    {
+        await using SqliteBookFastApiFactory factory = new();
+        using HttpClient client = factory.CreateClient();
+
+        using JsonDocument document = await ExecuteGraphQlAsync(
+            client,
+            """
+            query {
+            rooms(sortBy: CAPACITY_DESCENDING, first: 2) {
+                code
+                capacity
+              }
+        }
+        """);
+
+        AssertNoGraphQlErrors(document);
+
+        JsonElement rooms = document.RootElement
+            .GetProperty("data")
+            .GetProperty("rooms");
+
+        Assert.Equal(2, rooms.GetArrayLength());
+        Assert.Equal("AMS-BOARD-01", rooms[0].GetProperty("code").GetString());
+        Assert.Equal(12, rooms[0].GetProperty("capacity").GetInt32());
+        Assert.Equal("UTR-COLLAB-02", rooms[1].GetProperty("code").GetString());
     }
 
     [Fact]
@@ -77,7 +107,7 @@ public sealed class GraphQlEndpointTests
         DateTimeOffset startUtc = DateTimeOffset.UtcNow.AddHours(2);
         DateTimeOffset endUtc = startUtc.AddHours(1);
 
-        await CreateReservationAsync(client, startUtc, endUtc);
+        await CreateReservationAsync(client, AmsterdamBoardRoomId, "GraphQL Recruiter Demo", startUtc, endUtc);
 
         using JsonDocument document = await ExecuteGraphQlAsync(
             client,
@@ -103,6 +133,62 @@ public sealed class GraphQlEndpointTests
     }
 
     [Fact]
+    public async Task PostReservationsQuery_ShouldFilterByLocationAndSortDescending()
+    {
+        await using SqliteBookFastApiFactory factory = new();
+        using HttpClient client = factory.CreateClient();
+        DateTimeOffset utrechtStartUtc = DateTimeOffset.UtcNow.AddHours(1);
+        DateTimeOffset firstAmsterdamStartUtc = DateTimeOffset.UtcNow.AddHours(2);
+        DateTimeOffset secondAmsterdamStartUtc = DateTimeOffset.UtcNow.AddHours(5);
+
+        await CreateReservationAsync(
+            client,
+            UtrechtCollaborationHubId,
+            "GraphQL Utrecht Consumer",
+            utrechtStartUtc,
+            utrechtStartUtc.AddHours(1));
+        await CreateReservationAsync(
+            client,
+            AmsterdamBoardRoomId,
+            "GraphQL Amsterdam First",
+            firstAmsterdamStartUtc,
+            firstAmsterdamStartUtc.AddHours(1));
+        await CreateReservationAsync(
+            client,
+            AmsterdamBoardRoomId,
+            "GraphQL Amsterdam Second",
+            secondAmsterdamStartUtc,
+            secondAmsterdamStartUtc.AddHours(1));
+
+        using JsonDocument document = await ExecuteGraphQlAsync(
+            client,
+            """
+            query {
+            reservations(
+              location: "Amsterdam HQ - Floor 5"
+
+              sortBy: START_UTC_DESCENDING
+
+              first: 5
+            ) {
+                roomCode
+                reservedBy
+              }
+        }
+        """);
+
+        AssertNoGraphQlErrors(document);
+
+        JsonElement reservations = document.RootElement
+            .GetProperty("data")
+            .GetProperty("reservations");
+
+        Assert.Equal(2, reservations.GetArrayLength());
+        Assert.Equal("GraphQL Amsterdam Second", reservations[0].GetProperty("reservedBy").GetString());
+        Assert.Equal("GraphQL Amsterdam First", reservations[1].GetProperty("reservedBy").GetString());
+    }
+
+    [Fact]
     public async Task PostRoomAvailabilityQuery_ShouldReturnConflict_WhenReservationExists()
     {
         await using SqliteBookFastApiFactory factory = new();
@@ -110,7 +196,7 @@ public sealed class GraphQlEndpointTests
         DateTimeOffset startUtc = DateTimeOffset.UtcNow.AddHours(3);
         DateTimeOffset endUtc = startUtc.AddHours(1);
 
-        await CreateReservationAsync(client, startUtc, endUtc);
+        await CreateReservationAsync(client, AmsterdamBoardRoomId, "GraphQL Recruiter Demo", startUtc, endUtc);
 
         using JsonDocument document = await ExecuteGraphQlAsync(
             client,
@@ -138,8 +224,108 @@ public sealed class GraphQlEndpointTests
             availability.GetProperty("conflicts")[0].GetProperty("reservedBy").GetString());
     }
 
+    [Fact]
+    public async Task PostRoomAvailabilityOverviewQuery_ShouldReturnAvailabilityAcrossRooms()
+    {
+        await using SqliteBookFastApiFactory factory = new();
+        using HttpClient client = factory.CreateClient();
+        DateTimeOffset startUtc = DateTimeOffset.UtcNow.AddHours(3);
+        DateTimeOffset endUtc = startUtc.AddHours(1);
+
+        await CreateReservationAsync(client, AmsterdamBoardRoomId, "GraphQL Availability Demo", startUtc, endUtc);
+
+        using JsonDocument document = await ExecuteGraphQlAsync(
+            client,
+            $$"""
+            query {
+            roomAvailabilityOverview(
+              fromUtc: "{{startUtc:O}}"
+
+              toUtc: "{{endUtc:O}}"
+
+              sortBy: CAPACITY_DESCENDING
+
+              first: 3
+            ) {
+                roomCode
+                location
+                capacity
+                isAvailable
+                conflictCount
+              }
+        }
+        """);
+
+        AssertNoGraphQlErrors(document);
+
+        JsonElement overview = document.RootElement
+            .GetProperty("data")
+            .GetProperty("roomAvailabilityOverview");
+
+        Assert.Equal(3, overview.GetArrayLength());
+        Assert.Equal("AMS-BOARD-01", overview[0].GetProperty("roomCode").GetString());
+        Assert.False(overview[0].GetProperty("isAvailable").GetBoolean());
+        Assert.Equal(1, overview[0].GetProperty("conflictCount").GetInt32());
+        Assert.True(overview[1].GetProperty("isAvailable").GetBoolean());
+    }
+
+    [Fact]
+    public async Task PostOccupancyOverviewQuery_ShouldReturnLocationSummaries()
+    {
+        await using SqliteBookFastApiFactory factory = new();
+        using HttpClient client = factory.CreateClient();
+        DateTimeOffset startUtc = DateTimeOffset.UtcNow.AddHours(4);
+        DateTimeOffset endUtc = startUtc.AddHours(1);
+
+        await CreateReservationAsync(client, AmsterdamBoardRoomId, "GraphQL Occupancy Demo", startUtc, endUtc);
+
+        using JsonDocument document = await ExecuteGraphQlAsync(
+            client,
+            $$"""
+            query {
+            occupancyOverview(
+              fromUtc: "{{startUtc:O}}"
+
+              toUtc: "{{endUtc:O}}"
+
+              sortBy: LOCATION_ASCENDING
+
+              first: 3
+            ) {
+                location
+                totalRooms
+                reservedRooms
+                availableRooms
+                totalCapacity
+                reservedCapacity
+                activeReservations
+                roomOccupancyRate
+                capacityOccupancyRate
+              }
+        }
+        """);
+
+        AssertNoGraphQlErrors(document);
+
+        JsonElement summaries = document.RootElement
+            .GetProperty("data")
+            .GetProperty("occupancyOverview");
+
+        Assert.Equal(3, summaries.GetArrayLength());
+        Assert.Equal("Amsterdam HQ - Floor 5", summaries[0].GetProperty("location").GetString());
+        Assert.Equal(1, summaries[0].GetProperty("totalRooms").GetInt32());
+        Assert.Equal(1, summaries[0].GetProperty("reservedRooms").GetInt32());
+        Assert.Equal(0, summaries[0].GetProperty("availableRooms").GetInt32());
+        Assert.Equal(12, summaries[0].GetProperty("reservedCapacity").GetInt32());
+        Assert.Equal(1, summaries[0].GetProperty("activeReservations").GetInt32());
+        Assert.Equal(1, summaries[0].GetProperty("roomOccupancyRate").GetDouble());
+        Assert.Equal(1, summaries[0].GetProperty("capacityOccupancyRate").GetDouble());
+    }
+
     private static async Task CreateReservationAsync(
         HttpClient client,
+        Guid roomId,
+        string reservedBy,
         DateTimeOffset startUtc,
         DateTimeOffset endUtc)
     {
@@ -147,8 +333,8 @@ public sealed class GraphQlEndpointTests
             "/api/v1/reservations",
             new
             {
-                roomId = AmsterdamBoardRoomId,
-                reservedBy = "GraphQL Recruiter Demo",
+                roomId,
+                reservedBy,
                 purpose = "GraphQL reservation read model",
                 startUtc,
                 endUtc
