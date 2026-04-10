@@ -52,3 +52,8 @@ scripts/run-local-ci.ps1
 # Test results
 **/TestResults/
 *.trx
+
+# IntelliJ / Rider
+encodings.xml
+indexLayout.xml
+vcs.xml

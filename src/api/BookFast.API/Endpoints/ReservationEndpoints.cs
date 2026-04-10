@@ -1,6 +1,6 @@
 // ******************************************************************************
 //  © 2026 Ernst & Young Accountants LLP - www.ey.com
-// 
+//
 //  Author          : EY - Climate Change and Sustainability Services
 //  File:           : ReservationEndpoints.cs
 //  Project         : BookFast.API
@@ -8,6 +8,7 @@
 
 using BookFast.API.Common;
 using BookFast.API.Contracts.Reservations;
+using BookFast.API.Diagnostics;
 using BookFast.API.Domain;
 using BookFast.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -45,11 +46,10 @@ public static class ReservationEndpoints
     private static IResult GetReservations(IBookFastCatalog catalog)
     {
         IReadOnlyCollection<Reservation> reservations = catalog.ListReservations();
-        ReservationResponse[] response = reservations
+        ReservationResponse[] response = [..reservations
             .Select(reservation => MapReservation(reservation, catalog))
             .Where(reservation => reservation is not null)
-            .Cast<ReservationResponse>()
-            .ToArray();
+            .Cast<ReservationResponse>()];
 
         return Results.Ok(response);
     }
@@ -79,12 +79,14 @@ public static class ReservationEndpoints
     private static IResult CreateReservation(
         CreateReservationRequest request,
         IBookFastCatalog catalog,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        HttpContext httpContext)
     {
         ILogger logger = loggerFactory.CreateLogger("ReservationEndpoints");
         Dictionary<string, string[]> errors = ValidateCreateReservationRequest(request);
         if (errors.Count > 0)
         {
+            ApiRequestLog.LogValidationFailure(logger, httpContext, errors);
             return Results.ValidationProblem(errors);
         }
 
@@ -109,25 +111,31 @@ public static class ReservationEndpoints
 
         if (result.Status == ReservationCreationStatus.InvalidTimeRange)
         {
-            return Results.ValidationProblem(CreateTimeRangeError());
+            Dictionary<string, string[]> timeRangeError = CreateTimeRangeError();
+            ApiRequestLog.LogValidationFailure(logger, httpContext, timeRangeError);
+            return Results.ValidationProblem(timeRangeError);
         }
 
         if (result.Status == ReservationCreationStatus.StartTimeInPast)
         {
-            Dictionary<string, string[]> startTimeError = new Dictionary<string, string[]>
+            Dictionary<string, string[]> startTimeError = new()
             {
-                ["startUtc"] = new[] { "startUtc must be in the future." }
+                ["startUtc"] = ["startUtc must be in the future."]
             };
 
+            ApiRequestLog.LogValidationFailure(logger, httpContext, startTimeError);
             return Results.ValidationProblem(startTimeError);
         }
 
         if (result.Status == ReservationCreationStatus.Conflict)
         {
-            logger.LogWarning(
-                "Reservation creation rejected because room {RoomId} already has {ConflictCount} conflicting reservation(s).",
-                request.RoomId,
-                result.ConflictingReservations.Count);
+            ApiRequestLog.LogConflict(
+                logger,
+                httpContext,
+                "ReservationCreate",
+                request.RoomId.ToString(),
+                result.ConflictingReservations.Count,
+                "The requested reservation overlaps with one or more existing reservations.");
 
             ProblemDetails problem = ApiProblemDetailsFactory.Create(
                 StatusCodes.Status409Conflict,
@@ -141,6 +149,12 @@ public static class ReservationEndpoints
         Reservation? reservation = result.Reservation;
         if (reservation is null)
         {
+            ApiRequestLog.LogFailure(
+                logger,
+                httpContext,
+                "ReservationCreateMissingEntity",
+                "Reservation creation returned no reservation instance.");
+
             return Results.Problem(
                 title: "Reservation creation failed",
                 detail: "The reservation could not be created.",
@@ -151,6 +165,12 @@ public static class ReservationEndpoints
         ReservationResponse? response = MapReservation(reservation, catalog);
         if (response is null)
         {
+            ApiRequestLog.LogFailure(
+                logger,
+                httpContext,
+                "ReservationCreateMissingRoom",
+                "Reservation was created but the associated room could not be resolved.");
+
             return Results.Problem(
                 title: "Reservation creation failed",
                 detail: "The reservation was created, but the associated room could not be resolved.",
@@ -170,31 +190,31 @@ public static class ReservationEndpoints
 
     private static Dictionary<string, string[]> ValidateCreateReservationRequest(CreateReservationRequest request)
     {
-        Dictionary<string, string[]> errors = new Dictionary<string, string[]>();
+        Dictionary<string, string[]> errors = [];
 
         if (request.RoomId == Guid.Empty)
         {
-            errors["roomId"] = new[] { "roomId is required." };
+            errors["roomId"] = ["roomId is required."];
         }
 
         if (string.IsNullOrWhiteSpace(request.ReservedBy))
         {
-            errors["reservedBy"] = new[] { "reservedBy is required." };
+            errors["reservedBy"] = ["reservedBy is required."];
         }
 
         if (request.StartUtc == default)
         {
-            errors["startUtc"] = new[] { "startUtc is required." };
+            errors["startUtc"] = ["startUtc is required."];
         }
 
         if (request.EndUtc == default)
         {
-            errors["endUtc"] = new[] { "endUtc is required." };
+            errors["endUtc"] = ["endUtc is required."];
         }
 
         if (request.StartUtc != default && request.EndUtc != default && request.StartUtc >= request.EndUtc)
         {
-            errors["timeRange"] = new[] { "startUtc must be earlier than endUtc." };
+            errors["timeRange"] = ["startUtc must be earlier than endUtc."];
         }
 
         return errors;
@@ -204,7 +224,7 @@ public static class ReservationEndpoints
     {
         return new Dictionary<string, string[]>
         {
-            ["timeRange"] = new[] { "The requested reservation time range is invalid." }
+            ["timeRange"] = ["The requested reservation time range is invalid."]
         };
     }
 

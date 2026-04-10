@@ -20,11 +20,12 @@
  3. Frontend: http://localhost:3000
  4. API: http://localhost:5000
  
- ## Branchingstrategie
- 
- - `main`: Production-ready
- - `feature/<naam>`: Feature branches (korte duur)
- - `hotfix/<naam>`: Only for critical production bugs
+## Branchingstrategie
+
+- `main`: Production-ready
+- `develop`: Integration branch en primaire CI branch
+- `feature/<naam>`: Feature branches vanaf `develop`
+- `hotfix/<naam>`: Only for critical production bugs
  
  ## Commitconventies
  
@@ -35,9 +36,9 @@ feat: add reservation endpoint fix: correct date validation docs: update branchi
  
  ## Pull Request Process
  
- 1. Maak feature branch van `main`
- 2. Commit met descriptive messages
- 3. Open PR
- 4. Laat CI draaien
- 5. Minimaal 1 review approval
- 6. Merge naar `main
+1. Maak feature branch van `develop`
+2. Commit met descriptive messages
+3. Open PR
+4. Laat CI draaien
+5. Minimaal 1 review approval
+6. Merge naar `develop`
