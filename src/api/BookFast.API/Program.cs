@@ -10,10 +10,13 @@ using BookFast.API.Common;
 using BookFast.API.Endpoints;
 using BookFast.API.Diagnostics;
 using BookFast.API.GraphQL;
+using BookFast.API.Infrastructure.Persistence;
 using BookFast.API.Services;
 
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +34,25 @@ builder.Services.Configure<ApiGovernanceOptions>(
     builder.Configuration.GetSection(ApiGovernanceOptions.SectionName));
 builder.Services.Configure<ApiCorsOptions>(
     builder.Configuration.GetSection(ApiCorsOptions.SectionName));
+builder.Services.Configure<BookFastDatabaseOptions>(
+    builder.Configuration.GetSection(BookFastDatabaseOptions.SectionName));
+string? connectionString = builder.Configuration.GetConnectionString(BookFastDatabaseOptions.ConnectionStringName);
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        $"Connection string '{BookFastDatabaseOptions.ConnectionStringName}' is required.");
+}
+
 ApiCorsOptions corsOptions = builder.Configuration.GetSection(ApiCorsOptions.SectionName).Get<ApiCorsOptions>() ?? new ApiCorsOptions();
+builder.Services.AddDbContext<BookFastDbContext>(options =>
+{
+    options.UseSqlServer(
+        connectionString,
+        sqlServerOptions =>
+        {
+            sqlServerOptions.EnableRetryOnFailure();
+        });
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(ApiCorsOptions.PolicyName, policyBuilder =>
@@ -67,9 +88,12 @@ builder.Services.AddHealthChecks()
        .AddCheck(
            "self",
            () => HealthCheckResult.Healthy("BookFast API is ready."),
-           ["ready"]);
+           ["ready"])
+       .AddDbContextCheck<BookFastDbContext>(
+           "database",
+           tags: ["ready"]);
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
-builder.Services.AddSingleton<IBookFastCatalog, InMemoryBookFastCatalog>();
+builder.Services.AddScoped<IBookFastCatalog, SqlBookFastCatalog>();
 builder.Services
     .AddGraphQLServer()
     .AddQueryType<Query>()
@@ -84,6 +108,8 @@ builder.Services
     });
 
 WebApplication app = builder.Build();
+
+await ApplyDatabaseMigrationsAsync(app);
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ApiGovernanceHeadersMiddleware>();
@@ -128,5 +154,23 @@ apiGroup.MapRoomEndpoints();
 apiGroup.MapReservationEndpoints();
 
 app.Run();
+
+static async Task ApplyDatabaseMigrationsAsync(WebApplication app)
+{
+    BookFastDatabaseOptions databaseOptions = app.Services.GetRequiredService<IOptions<BookFastDatabaseOptions>>().Value;
+    if (!databaseOptions.ApplyMigrationsOnStartup)
+    {
+        return;
+    }
+
+    await using AsyncServiceScope serviceScope = app.Services.CreateAsyncScope();
+    BookFastDbContext dbContext = serviceScope.ServiceProvider.GetRequiredService<BookFastDbContext>();
+    ILogger logger = serviceScope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("BookFastDatabase");
+
+    logger.LogInformation("Applying BookFast database migrations at startup.");
+    await dbContext.Database.MigrateAsync();
+}
 
 public partial class Program;

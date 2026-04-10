@@ -10,8 +10,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-using Microsoft.AspNetCore.Mvc.Testing;
-
 namespace BookFast.API.Tests;
 
 public sealed class GraphQlEndpointTests
@@ -21,20 +19,20 @@ public sealed class GraphQlEndpointTests
     [Fact]
     public async Task PostRoomsQuery_ShouldApplyFilteringAndPaging()
     {
-        await using BookFastApiFactory factory = new();
+        await using SqliteBookFastApiFactory factory = new();
         using HttpClient client = factory.CreateClient();
 
         using JsonDocument document = await ExecuteGraphQlAsync(
             client,
             """
             query {
-              rooms(search: "Amsterdam", minimumCapacity: 10, first: 1) {
+            rooms(search: "Amsterdam", minimumCapacity: 10, first: 1) {
                 code
                 name
                 capacity
               }
-            }
-            """);
+        }
+        """);
 
         AssertNoGraphQlErrors(document);
 
@@ -50,18 +48,18 @@ public sealed class GraphQlEndpointTests
     [Fact]
     public async Task PostRoomsQuery_ShouldReturnGraphQlError_WhenPageSizeIsOutsideAllowedRange()
     {
-        await using BookFastApiFactory factory = new();
+        await using SqliteBookFastApiFactory factory = new();
         using HttpClient client = factory.CreateClient();
 
         using JsonDocument document = await ExecuteGraphQlAsync(
             client,
             """
             query {
-              rooms(first: 0) {
+            rooms(first: 0) {
                 code
               }
-            }
-            """);
+        }
+        """);
 
         JsonElement errors = document.RootElement.GetProperty("errors");
 
@@ -74,7 +72,7 @@ public sealed class GraphQlEndpointTests
     [Fact]
     public async Task PostReservationsQuery_ShouldReturnCreatedReservation()
     {
-        await using BookFastApiFactory factory = new();
+        await using SqliteBookFastApiFactory factory = new();
         using HttpClient client = factory.CreateClient();
         DateTimeOffset startUtc = DateTimeOffset.UtcNow.AddHours(2);
         DateTimeOffset endUtc = startUtc.AddHours(1);
@@ -85,13 +83,13 @@ public sealed class GraphQlEndpointTests
             client,
             $$"""
             query {
-              reservations(roomId: "{{AmsterdamBoardRoomId}}", reservedByContains: "GraphQL Recruiter", first: 5) {
+            reservations(roomId: "{{AmsterdamBoardRoomId}}", reservedByContains: "GraphQL Recruiter", first: 5) {
                 roomCode
                 reservedBy
                 purpose
               }
-            }
-            """);
+        }
+        """);
 
         AssertNoGraphQlErrors(document);
 
@@ -107,7 +105,7 @@ public sealed class GraphQlEndpointTests
     [Fact]
     public async Task PostRoomAvailabilityQuery_ShouldReturnConflict_WhenReservationExists()
     {
-        await using BookFastApiFactory factory = new();
+        await using SqliteBookFastApiFactory factory = new();
         using HttpClient client = factory.CreateClient();
         DateTimeOffset startUtc = DateTimeOffset.UtcNow.AddHours(3);
         DateTimeOffset endUtc = startUtc.AddHours(1);
@@ -118,14 +116,14 @@ public sealed class GraphQlEndpointTests
             client,
             $$"""
             query {
-              roomAvailability(roomId: "{{AmsterdamBoardRoomId}}", fromUtc: "{{startUtc:O}}", toUtc: "{{endUtc:O}}") {
+            roomAvailability(roomId: "{{AmsterdamBoardRoomId}}", fromUtc: "{{startUtc:O}}", toUtc: "{{endUtc:O}}") {
                 isAvailable
                 conflicts {
-                  reservedBy
+                    reservedBy
                 }
-              }
             }
-            """);
+        }
+        """);
 
         AssertNoGraphQlErrors(document);
 
@@ -174,9 +172,5 @@ public sealed class GraphQlEndpointTests
         Assert.False(
             document.RootElement.TryGetProperty("errors", out _),
             document.RootElement.GetRawText());
-    }
-
-    private sealed class BookFastApiFactory : WebApplicationFactory<Program>
-    {
     }
 }

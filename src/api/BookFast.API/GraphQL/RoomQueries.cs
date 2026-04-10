@@ -18,21 +18,23 @@ namespace BookFast.API.GraphQL;
 [ExtendObjectType(typeof(Query))]
 public sealed class RoomQueries
 {
-    public IReadOnlyList<RoomResponse> GetRooms(
-        IBookFastCatalog catalog,
+    public async Task<IReadOnlyList<RoomResponse>> GetRooms(
         string? search = null,
         int? minimumCapacity = null,
         int skip = 0,
-        int first = 20)
+        int first = 20,
+        IBookFastCatalog catalog = default!,
+        CancellationToken cancellationToken = default)
     {
         GraphQLQueryGuard.EnsurePagingArguments(skip, first);
         GraphQLQueryGuard.EnsureMinimumCapacity(minimumCapacity);
 
-        IEnumerable<Room> rooms = catalog.ListRooms();
+        IReadOnlyCollection<Room> rooms = await catalog.ListRoomsAsync(cancellationToken);
+        IEnumerable<Room> filteredRooms = rooms;
         string? normalizedSearch = Normalize(search);
         if (normalizedSearch is not null)
         {
-            rooms = rooms.Where(room =>
+            filteredRooms = filteredRooms.Where(room =>
                 room.Code.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase) ||
                 room.Name.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase) ||
                 room.Location.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase));
@@ -40,15 +42,18 @@ public sealed class RoomQueries
 
         if (minimumCapacity is int capacity)
         {
-            rooms = rooms.Where(room => room.Capacity >= capacity);
+            filteredRooms = filteredRooms.Where(room => room.Capacity >= capacity);
         }
 
-        return [..rooms.Skip(skip).Take(first).Select(ApiContractMapper.MapRoom)];
+        return [..filteredRooms.Skip(skip).Take(first).Select(ApiContractMapper.MapRoom)];
     }
 
-    public RoomResponse? GetRoom(Guid id, IBookFastCatalog catalog)
+    public async Task<RoomResponse?> GetRoom(
+        Guid id,
+        IBookFastCatalog catalog,
+        CancellationToken cancellationToken)
     {
-        Room? room = catalog.GetRoom(id);
+        Room? room = await catalog.GetRoomAsync(id, cancellationToken);
         if (room is null)
         {
             return null;
@@ -57,21 +62,27 @@ public sealed class RoomQueries
         return ApiContractMapper.MapRoom(room);
     }
 
-    public RoomAvailabilityResponse GetRoomAvailability(
+    public async Task<RoomAvailabilityResponse> GetRoomAvailability(
         Guid roomId,
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
-        IBookFastCatalog catalog)
+        IBookFastCatalog catalog,
+        CancellationToken cancellationToken)
     {
         GraphQLQueryGuard.EnsureTimeRange(fromUtc, toUtc);
 
-        Room? room = catalog.GetRoom(roomId);
+        Room? room = await catalog.GetRoomAsync(roomId, cancellationToken);
         if (room is null)
         {
             throw GraphQLQueryGuard.CreateError("ROOM_NOT_FOUND", $"No room exists with id '{roomId}'.");
         }
 
-        AvailabilityCheckResult result = catalog.CheckAvailability(roomId, fromUtc, toUtc);
+        AvailabilityCheckResult result = await catalog.CheckAvailabilityAsync(
+            roomId,
+            fromUtc,
+            toUtc,
+            cancellationToken);
+
         return ApiContractMapper.MapAvailability(room, fromUtc, toUtc, result);
     }
 

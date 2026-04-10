@@ -41,17 +41,20 @@ public static class RoomEndpoints
         return apiGroup;
     }
 
-    private static IResult GetRooms(IBookFastCatalog catalog)
+    private static async Task<IResult> GetRooms(IBookFastCatalog catalog, CancellationToken cancellationToken)
     {
-        IReadOnlyCollection<Room> rooms = catalog.ListRooms();
+        IReadOnlyCollection<Room> rooms = await catalog.ListRoomsAsync(cancellationToken);
         RoomResponse[] response = [..rooms.Select(ApiContractMapper.MapRoom)];
 
         return Results.Ok(response);
     }
 
-    private static IResult GetRoomById(Guid roomId, IBookFastCatalog catalog)
+    private static async Task<IResult> GetRoomById(
+        Guid roomId,
+        IBookFastCatalog catalog,
+        CancellationToken cancellationToken)
     {
-        Room? room = catalog.GetRoom(roomId);
+        Room? room = await catalog.GetRoomAsync(roomId, cancellationToken);
         if (room is null)
         {
             ProblemDetails problem = CreateRoomNotFoundProblem(roomId);
@@ -61,13 +64,14 @@ public static class RoomEndpoints
         return Results.Ok(ApiContractMapper.MapRoom(room));
     }
 
-    private static IResult GetAvailability(
+    private static async Task<IResult> GetAvailability(
         Guid roomId,
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
         IBookFastCatalog catalog,
         HttpContext httpContext,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
     {
         ILogger logger = loggerFactory.CreateLogger("RoomEndpoints");
         Dictionary<string, string[]> errors = ValidateAvailabilityQuery(fromUtc, toUtc);
@@ -81,7 +85,12 @@ public static class RoomEndpoints
                 ApiErrorCodes.InvalidAvailabilityQuery);
         }
 
-        AvailabilityCheckResult result = catalog.CheckAvailability(roomId, fromUtc, toUtc);
+        AvailabilityCheckResult result = await catalog.CheckAvailabilityAsync(
+            roomId,
+            fromUtc,
+            toUtc,
+            cancellationToken);
+
         if (!result.RoomExists)
         {
             ProblemDetails problem = CreateRoomNotFoundProblem(roomId);
@@ -99,7 +108,7 @@ public static class RoomEndpoints
                 ApiErrorCodes.InvalidAvailabilityQuery);
         }
 
-        Room? room = catalog.GetRoom(roomId);
+        Room? room = await catalog.GetRoomAsync(roomId, cancellationToken);
         if (room is null)
         {
             ProblemDetails problem = CreateRoomNotFoundProblem(roomId);

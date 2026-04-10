@@ -54,14 +54,8 @@ public static class ApiContractMapper
             conflicts);
     }
 
-    public static ReservationResponse? MapReservation(Reservation reservation, IBookFastCatalog catalog)
+    public static ReservationResponse MapReservation(Reservation reservation, Room room)
     {
-        Room? room = catalog.GetRoom(reservation.RoomId);
-        if (room is null)
-        {
-            return null;
-        }
-
         return new ReservationResponse(
             reservation.Id,
             reservation.RoomId,

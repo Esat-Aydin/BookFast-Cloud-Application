@@ -16,64 +16,83 @@ namespace BookFast.API.GraphQL;
 [ExtendObjectType(typeof(Query))]
 public sealed class ReservationQueries
 {
-    public IReadOnlyList<ReservationResponse> GetReservations(
-        IBookFastCatalog catalog,
+    public async Task<IReadOnlyList<ReservationResponse>> GetReservations(
         Guid? roomId = null,
         string? reservedByContains = null,
         ReservationStatus? status = null,
         DateTimeOffset? fromUtc = null,
         DateTimeOffset? toUtc = null,
         int skip = 0,
-        int first = 20)
+        int first = 20,
+        IBookFastCatalog catalog = default!,
+        CancellationToken cancellationToken = default)
     {
         GraphQLQueryGuard.EnsurePagingArguments(skip, first);
         GraphQLQueryGuard.EnsureOptionalTimeRange(fromUtc, toUtc);
 
-        IEnumerable<Reservation> reservations = catalog.ListReservations();
+        IReadOnlyCollection<Reservation> reservations = await catalog.ListReservationsAsync(cancellationToken);
+        IEnumerable<Reservation> filteredReservations = reservations;
         if (roomId.HasValue)
         {
-            reservations = reservations.Where(reservation => reservation.RoomId == roomId.Value);
+            filteredReservations = filteredReservations.Where(reservation => reservation.RoomId == roomId.Value);
         }
 
         string? normalizedReservedBy = Normalize(reservedByContains);
         if (normalizedReservedBy is not null)
         {
-            reservations = reservations.Where(reservation =>
+            filteredReservations = filteredReservations.Where(reservation =>
                 reservation.ReservedBy.Contains(normalizedReservedBy, StringComparison.OrdinalIgnoreCase));
         }
 
         if (status.HasValue)
         {
-            reservations = reservations.Where(reservation => reservation.Status == status.Value);
+            filteredReservations = filteredReservations.Where(reservation => reservation.Status == status.Value);
         }
 
         if (fromUtc.HasValue)
         {
-            reservations = reservations.Where(reservation => reservation.EndUtc > fromUtc.Value);
+            filteredReservations = filteredReservations.Where(reservation => reservation.EndUtc > fromUtc.Value);
         }
 
         if (toUtc.HasValue)
         {
-            reservations = reservations.Where(reservation => reservation.StartUtc < toUtc.Value);
+            filteredReservations = filteredReservations.Where(reservation => reservation.StartUtc < toUtc.Value);
         }
 
-        return [..reservations
+        Reservation[] page = [..filteredReservations
             .Skip(skip)
-            .Take(first)
-            .Select(reservation => ApiContractMapper.MapReservation(reservation, catalog))
+            .Take(first)];
+
+        Guid[] roomIds = [..page
+            .Select(reservation => reservation.RoomId)
+            .Distinct()];
+
+        IReadOnlyDictionary<Guid, Room> roomsById = await catalog.ListRoomsByIdsAsync(roomIds, cancellationToken);
+
+        return [..page
+            .Select(reservation => TryMapReservation(reservation, roomsById))
             .Where(response => response is not null)
             .Select(response => response!)];
     }
 
-    public ReservationResponse? GetReservation(Guid id, IBookFastCatalog catalog)
+    public async Task<ReservationResponse?> GetReservation(
+        Guid id,
+        IBookFastCatalog catalog,
+        CancellationToken cancellationToken)
     {
-        Reservation? reservation = catalog.GetReservation(id);
+        Reservation? reservation = await catalog.GetReservationAsync(id, cancellationToken);
         if (reservation is null)
         {
             return null;
         }
 
-        return ApiContractMapper.MapReservation(reservation, catalog);
+        Room? room = await catalog.GetRoomAsync(reservation.RoomId, cancellationToken);
+        if (room is null)
+        {
+            return null;
+        }
+
+        return ApiContractMapper.MapReservation(reservation, room);
     }
 
     private static string? Normalize(string? value)
@@ -84,5 +103,17 @@ public sealed class ReservationQueries
         }
 
         return value.Trim();
+    }
+
+    private static ReservationResponse? TryMapReservation(
+        Reservation reservation,
+        IReadOnlyDictionary<Guid, Room> roomsById)
+    {
+        if (!roomsById.TryGetValue(reservation.RoomId, out Room? room))
+        {
+            return null;
+        }
+
+        return ApiContractMapper.MapReservation(reservation, room);
     }
 }
