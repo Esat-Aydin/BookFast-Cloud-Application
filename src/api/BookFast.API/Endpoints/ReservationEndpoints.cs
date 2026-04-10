@@ -47,9 +47,9 @@ public static class ReservationEndpoints
     {
         IReadOnlyCollection<Reservation> reservations = catalog.ListReservations();
         ReservationResponse[] response = [..reservations
-            .Select(reservation => MapReservation(reservation, catalog))
+            .Select(reservation => ApiContractMapper.MapReservation(reservation, catalog))
             .Where(reservation => reservation is not null)
-            .Cast<ReservationResponse>()];
+            .Select(reservation => reservation!)];
 
         return Results.Ok(response);
     }
@@ -63,7 +63,7 @@ public static class ReservationEndpoints
             return Results.NotFound(problem);
         }
 
-        ReservationResponse? response = MapReservation(reservation, catalog);
+        ReservationResponse? response = ApiContractMapper.MapReservation(reservation, catalog);
         if (response is null)
         {
             return Results.Problem(
@@ -162,7 +162,7 @@ public static class ReservationEndpoints
                 statusCode: StatusCodes.Status500InternalServerError);
         }
 
-        ReservationResponse? response = MapReservation(reservation, catalog);
+        ReservationResponse? response = ApiContractMapper.MapReservation(reservation, catalog);
         if (response is null)
         {
             ApiRequestLog.LogFailure(
@@ -237,24 +237,4 @@ public static class ReservationEndpoints
             $"/api/v1/reservations/{reservationId}");
     }
 
-    private static ReservationResponse? MapReservation(Reservation reservation, IBookFastCatalog catalog)
-    {
-        Room? room = catalog.GetRoom(reservation.RoomId);
-        if (room is null)
-        {
-            return null;
-        }
-
-        return new ReservationResponse(
-            reservation.Id,
-            reservation.RoomId,
-            room.Code,
-            room.Name,
-            reservation.ReservedBy,
-            reservation.Purpose,
-            reservation.StartUtc,
-            reservation.EndUtc,
-            reservation.CreatedUtc,
-            reservation.Status.ToString());
-    }
 }

@@ -1,24 +1,36 @@
- # BookFast - Room Reservation System
+# BookFast - Room Reservation System
  
- Een oefenproject voor AZ-400 DevOps Engineer Expert certification.
+Een oefenproject voor AZ-400 DevOps Engineer Expert certification.
  
- ## Tech Stack
+## Tech Stack
  - Frontend: React
  - Backend: ASP.NET Core (.NET 8)
  - Database: Azure SQL
  - CI/CD: Azure DevOps Pipelines
  - Infrastructure: Bicep
  
- ## Lokaal starten
+## Lokaal starten
+
+### Prerequisites
+- Git, Docker Desktop, .NET 10 SDK, Node.js 22+
  
- ### Prerequisites
- - Git, Docker Desktop, .NET 10 SDK, Node.js 22+
- 
- ### Steps
- 1. Clone de repo
- 2. Start docker-compose: `docker-compose up`
- 3. Frontend: http://localhost:3000
- 4. API: http://localhost:5000
+### Steps
+1. Clone de repo
+2. Start docker-compose: `docker-compose up`
+3. Frontend: http://localhost:3000
+4. API: http://localhost:5000
+
+## Git hooks
+
+Activeer na het clonen eenmalig de repo hooks:
+
+`pwsh -ExecutionPolicy Bypass -File .\scripts\setup-git-hooks.ps1`
+
+De pre-commit hook draait dezelfde .NET format-check als CI voor `src/api/BookFast.API/BookFast.API.csproj` en blokkeert de commit als formatting ontbreekt.
+
+Los formatting lokaal op met:
+
+`Push-Location src\api; dotnet tool restore; dotnet tool run dotnet-format -- BookFast.API\BookFast.API.csproj; Pop-Location`
  
 ## Branchingstrategie
 
@@ -27,14 +39,14 @@
 - `feature/<naam>`: Feature branches vanaf `develop`
 - `hotfix/<naam>`: Only for critical production bugs
  
- ## Commitconventies
+## Commitconventies
  
- Gebruik Conventional Commits:
+Gebruik Conventional Commits:
 
 feat: add reservation endpoint fix: correct date validation docs: update branching strategy
 
  
- ## Pull Request Process
+## Pull Request Process
  
 1. Maak feature branch van `develop`
 2. Commit met descriptive messages

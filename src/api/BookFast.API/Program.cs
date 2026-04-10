@@ -8,6 +8,7 @@
 
 using BookFast.API.Endpoints;
 using BookFast.API.Diagnostics;
+using BookFast.API.GraphQL;
 using BookFast.API.Services;
 
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -41,6 +42,18 @@ builder.Services.AddHealthChecks()
            ["ready"]);
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton<IBookFastCatalog, InMemoryBookFastCatalog>();
+builder.Services
+    .AddGraphQLServer()
+    .AddQueryType<Query>()
+    .AddTypeExtension<RoomQueries>()
+    .AddTypeExtension<ReservationQueries>()
+    .ModifyCostOptions(options =>
+    {
+        options.MaxFieldCost = 250;
+        options.MaxTypeCost = 250;
+        options.EnforceCostLimits = true;
+        options.ApplyCostDefaults = true;
+    });
 
 WebApplication app = builder.Build();
 
@@ -77,9 +90,13 @@ app.MapHealthChecks(
    .WithName("ReadinessCheck")
    .WithTags("Monitoring");
 
+app.MapGraphQL("/graphql");
+
 RouteGroupBuilder apiGroup = app.MapGroup("/api/v1");
 
 apiGroup.MapRoomEndpoints();
 apiGroup.MapReservationEndpoints();
 
 app.Run();
+
+public partial class Program;

@@ -44,7 +44,7 @@ public static class RoomEndpoints
     private static IResult GetRooms(IBookFastCatalog catalog)
     {
         IReadOnlyCollection<Room> rooms = catalog.ListRooms();
-        RoomResponse[] response = [..rooms.Select(MapRoom)];
+        RoomResponse[] response = [..rooms.Select(ApiContractMapper.MapRoom)];
 
         return Results.Ok(response);
     }
@@ -58,7 +58,7 @@ public static class RoomEndpoints
             return Results.NotFound(problem);
         }
 
-        return Results.Ok(MapRoom(room));
+        return Results.Ok(ApiContractMapper.MapRoom(room));
     }
 
     private static IResult GetAvailability(
@@ -98,16 +98,7 @@ public static class RoomEndpoints
             return Results.NotFound(problem);
         }
 
-        AvailabilityConflictResponse[] conflicts = [..result.ConflictingReservations.Select(MapConflict)];
-
-        RoomAvailabilityResponse response = new(
-            room.Id,
-            room.Code,
-            room.Name,
-            fromUtc,
-            toUtc,
-            result.IsAvailable,
-            conflicts);
+        RoomAvailabilityResponse response = ApiContractMapper.MapAvailability(room, fromUtc, toUtc, result);
 
         if (!result.IsAvailable)
         {
@@ -116,7 +107,7 @@ public static class RoomEndpoints
                 httpContext,
                 "RoomAvailability",
                 roomId.ToString(),
-                conflicts.Length,
+                response.Conflicts.Length,
                 "The requested room has one or more overlapping confirmed reservations.");
         }
 
@@ -162,24 +153,4 @@ public static class RoomEndpoints
             $"/api/v1/rooms/{roomId}");
     }
 
-    private static RoomResponse MapRoom(Room room)
-    {
-        return new RoomResponse(
-            room.Id,
-            room.Code,
-            room.Name,
-            room.Location,
-            room.Capacity,
-            room.Amenities);
-    }
-
-    private static AvailabilityConflictResponse MapConflict(Reservation reservation)
-    {
-        return new AvailabilityConflictResponse(
-            reservation.Id,
-            reservation.ReservedBy,
-            reservation.StartUtc,
-            reservation.EndUtc,
-            reservation.Status.ToString());
-    }
 }
