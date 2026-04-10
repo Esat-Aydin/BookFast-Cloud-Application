@@ -9,18 +9,21 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="86d310c1-c273-42e8-9f8b-9f2bfe10f325" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/api/BookFast.API/Diagnostics/ApiLogEvents.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/api/BookFast.API/Diagnostics/ApiRequestLog.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/api/BookFast.API/Diagnostics/GlobalExceptionHandler.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/api/BookFast.API/Diagnostics/RequestLoggingMiddleware.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="86d310c1-c273-42e8-9f8b-9f2bfe10f325" name="Changes" comment="﻿&#10;&#10;&gt; Example:&#10;&gt;    #12345: Implemented product overview&#10;&#10;&gt; Title: Summary, imperative, start upper case, don't end with a period&#10;&gt; No more than 50 chars. #### 50 chars is here: #&#10;&#10;&gt; Remember blank line between title and body.&#10;&#10;&gt; Body: Explain *what* and *why* (not *how*). Include task ID (Jira issue).&#10;&gt; Wrap at 72 chars. ################################## which is here: #&#10;&#10;&#10;&gt; At the end: Include Co-authored-by for all contributors. &#10;&gt; Include at least one empty line before it. Format: &#10;&gt; Co-authored-by: name &lt;user@users.noreply.github.com&gt;&#10;&gt;&#10;&gt; How to Write a Git Commit Message:&#10;&gt; https://chris.beams.io/posts/git-commit/&#10;&gt;&#10;&gt; 1.Separate subject from body with a blank line&#10;&gt; 2. Limit the subject line to 50 characters&#10;&gt; 3. Capitalize the subject line&#10;&gt; 4. Do not end the subject line with a period&#10;&gt; 5. Use the imperative mood in the subject line&#10;&gt; 6. Wrap the body at 72 characters&#10;&gt; 7. Use the body to explain what and why vs. how">
+      <change afterPath="$PROJECT_DIR$/src/api/BookFast.API.Tests/GraphQlEndpointTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/api/BookFast.API/Common/ApiContractMapper.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/api/BookFast.API/GraphQL/GraphQLQueryGuard.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/api/BookFast.API/GraphQL/Query.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/api/BookFast.API/GraphQL/ReservationQueries.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/api/BookFast.API/GraphQL/RoomQueries.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/api/BookFast.API.Tests/BookFast.API.Tests.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/BookFast.API.Tests/BookFast.API.Tests.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/api/BookFast.API/BookFast.API.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/BookFast.API/BookFast.API.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/api/BookFast.API/Diagnostics/ApiRequestLog.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/BookFast.API/Diagnostics/ApiRequestLog.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/api/BookFast.API/Endpoints/ReservationEndpoints.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/BookFast.API/Endpoints/ReservationEndpoints.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/api/BookFast.API/Endpoints/RoomEndpoints.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/BookFast.API/Endpoints/RoomEndpoints.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/api/BookFast.API/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/BookFast.API/Program.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/api/BookFast.API/Services/AvailabilityCheckResult.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/BookFast.API/Services/AvailabilityCheckResult.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/api/BookFast.API/Services/InMemoryBookFastCatalog.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/BookFast.API/Services/InMemoryBookFastCatalog.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/api/BookFast.API/Services/ReservationCreationResult.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/BookFast.API/Services/ReservationCreationResult.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/api/BookFast.API/appsettings.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/BookFast.API/appsettings.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -32,6 +35,11 @@
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="develop" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="McpProjectServerCommands">
@@ -39,9 +47,9 @@
     <urls />
   </component>
   <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="true" />
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 3
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 3
+}</component>
   <component name="ProjectId" id="3CAACQc9WG2E1kS5jSEr3gihdol" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -57,7 +65,7 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "develop",
+    "git-widget-placeholder": "Rebasing feat/graphql-read-platform",
     "junie.onboarding.icon.badge.shown": "true",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
@@ -114,7 +122,10 @@
       <method v="2" />
     </configuration>
     <configuration default="true" type="docker-deploy" factoryName="dockerfile" temporary="true">
-      <deployment type="dockerfile" />
+      <deployment type="dockerfile">
+        <settings />
+      </deployment>
+      <EXTENSION ID="com.jetbrains.rider.docker.debug" isFastModeEnabled="true" isSslEnabled="false" />
       <method v="2" />
     </configuration>
   </component>

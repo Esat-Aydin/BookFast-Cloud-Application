@@ -29,7 +29,7 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
     {
         lock (this._syncRoot)
         {
-            Room[] rooms = [..this._rooms.OrderBy(room => room.Code)];
+            Room[] rooms = [.. this._rooms.OrderBy(room => room.Code)];
 
             return rooms;
         }
@@ -48,7 +48,7 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
     {
         lock (this._syncRoot)
         {
-            Reservation[] reservations = [..this._reservations.OrderBy(reservation => reservation.StartUtc)];
+            Reservation[] reservations = [.. this._reservations.OrderBy(reservation => reservation.StartUtc)];
 
             return reservations;
         }
