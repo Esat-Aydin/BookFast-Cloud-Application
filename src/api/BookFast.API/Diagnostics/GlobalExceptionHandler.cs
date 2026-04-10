@@ -29,15 +29,18 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
+        string correlationId = ApiRequestContext.GetCorrelationId(httpContext);
+
         this._logger.LogError(
             ApiLogEvents.UnhandledFailure,
             exception,
-            "Unhandled API exception. Method: {Method}. Path: {Path}. TraceId: {TraceId}",
+            "Unhandled API exception. Method: {Method}. Path: {Path}. TraceId: {TraceId}. CorrelationId: {CorrelationId}",
             httpContext.Request.Method,
             httpContext.Request.Path.Value ?? "/",
-            httpContext.TraceIdentifier);
+            httpContext.TraceIdentifier,
+            correlationId);
 
-        ProblemDetails problemDetails = new ProblemDetails
+        ProblemDetails problemDetails = new()
         {
             Status = StatusCodes.Status500InternalServerError,
             Title = "Unexpected server error",
@@ -46,6 +49,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         };
 
         problemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
+        problemDetails.Extensions["correlationId"] = correlationId;
 
         httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
