@@ -1,120 +1,123 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+const currentCapabilities = [
+  {
+    title: 'REST /api/v1',
+    summary: 'Minimal API endpoints for rooms and reservations with consistent ProblemDetails responses.'
+  },
+  {
+    title: 'GraphQL /graphql',
+    summary: 'Consumer-driven read surface with paging and cost guardrails powered by Hot Chocolate.'
+  },
+  {
+    title: 'Operational baseline',
+    summary: 'Health checks, correlation middleware, structured request logging, and exception handling.'
+  }
+]
 
+const targetCapabilities = [
+  {
+    title: 'Azure API Management',
+    summary: 'Products, subscriptions, policies, revisions, and consumer lifecycle management.'
+  },
+  {
+    title: 'Azure Functions + Service Bus',
+    summary: 'Asynchronous integration processing, retries, dead-letter handling, and downstream workflows.'
+  },
+  {
+    title: 'Azure Monitor platform',
+    summary: 'Application Insights, Log Analytics, dashboards, alerts, and incident-driven runbooks.'
+  }
+]
+
+const repositoryAssets = [
+  {
+    path: 'docs/architecture/overview.md',
+    description: 'Current runtime view and target Azure platform direction.'
+  },
+  {
+    path: 'docs/architecture/bounded-contexts.md',
+    description: 'Responsibility boundaries for reservation, query, integration, and operations concerns.'
+  },
+  {
+    path: 'infra/bicep/main.bicep',
+    description: 'Bicep naming, parameter, and module scaffold for the future Azure rollout.'
+  },
+  {
+    path: 'pipelines/azure-devops/ci.yml',
+    description: 'Azure DevOps validation pipeline scaffold aligned with the current repository layout.'
+  }
+]
+
+function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+    <main className="platform-shell">
+      <section className="platform-shell__hero">
+        <p className="platform-shell__eyebrow">Portfolio for Azure Integration Engineering</p>
+        <h1 className="platform-shell__title">BookFast integration platform</h1>
+        <p className="platform-shell__summary">
+          BookFast is evolving from a room reservation demo into a compact Azure integration
+          platform with managed APIs, event-driven processing, and enterprise operational
+          guardrails.
+        </p>
+      </section>
+
+      <section className="platform-shell__section">
+        <div className="platform-shell__section-header">
+          <h2 className="platform-shell__section-title">Current implementation surface</h2>
+          <p className="platform-shell__section-text">
+            These capabilities exist in the repository today and are available for local
+            validation.
           </p>
         </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
+        <div className="platform-shell__grid">
+          {currentCapabilities.map((capability) => (
+            <article className="platform-card" key={capability.title}>
+              <h3 className="platform-card__title">{capability.title}</h3>
+              <p className="platform-card__summary">{capability.summary}</p>
+            </article>
+          ))}
         </div>
       </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <section className="platform-shell__section">
+        <div className="platform-shell__section-header">
+          <h2 className="platform-shell__section-title">Planned Azure capabilities</h2>
+          <p className="platform-shell__section-text">
+            These are the next platform layers that the repository is now structured to receive.
+          </p>
+        </div>
+
+        <div className="platform-shell__grid">
+          {targetCapabilities.map((capability) => (
+            <article className="platform-card" key={capability.title}>
+              <h3 className="platform-card__title">{capability.title}</h3>
+              <p className="platform-card__summary">{capability.summary}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="platform-shell__section">
+        <div className="platform-shell__section-header">
+          <h2 className="platform-shell__section-title">Repository assets</h2>
+          <p className="platform-shell__section-text">
+            The platform shell surfaces the architectural and delivery assets that now anchor the
+            next implementation phases.
+          </p>
+        </div>
+
+        <ul className="platform-list">
+          {repositoryAssets.map((asset) => (
+            <li className="platform-list__item" key={asset.path}>
+              <code className="platform-list__path">{asset.path}</code>
+              <p className="platform-list__description">{asset.description}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </main>
   )
 }
 

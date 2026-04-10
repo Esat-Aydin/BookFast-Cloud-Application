@@ -1,56 +1,116 @@
-# BookFast - Room Reservation System
- 
-Een oefenproject voor AZ-400 DevOps Engineer Expert certification.
- 
-## Tech Stack
- - Frontend: React
- - Backend: ASP.NET Core (.NET 8)
- - Database: Azure SQL
- - CI/CD: Azure DevOps Pipelines
- - Infrastructure: Bicep
- 
-## Lokaal starten
+# BookFast
+
+BookFast is a portfolio project that is being evolved into a compact Azure integration platform for room reservations. The current implementation already exposes a .NET 10 minimal API, a GraphQL read surface, structured diagnostics, and a lightweight React shell. Around that runtime, the repository now carries the architecture, ADR, Bicep, and Azure DevOps scaffolding needed to grow toward Azure API Management, Azure Functions, Service Bus, Azure SQL, and full operational visibility.
+
+## Current baseline
+
+| Area | Current state |
+| --- | --- |
+| API | ASP.NET Core minimal API under `/api/v1` with OpenAPI in development, ProblemDetails, correlation-aware request logging, and health checks. |
+| Query surface | GraphQL endpoint on `/graphql` using Hot Chocolate with paging and cost guardrails. |
+| Persistence | The catalog is still in-memory. Azure SQL is a planned next phase and is not implemented yet. |
+| Frontend | React/Vite shell for local demos, repository orientation, and future integration consumer flows. |
+| Delivery | GitHub Actions CI remains active today. Azure DevOps pipeline scaffolding lives under `pipelines/azure-devops/`. |
+| Infrastructure | Initial Bicep conventions and environment parameter scaffolding live under `infra/bicep/`. |
+
+## Target platform
+
+BookFast is being shaped toward the following target flow:
+
+```text
+Partner or internal consumer -> Azure API Management -> BookFast REST/GraphQL API -> Azure SQL
+Partner or internal consumer -> Azure API Management -> Service Bus -> Azure Functions -> Downstream consumers
+All runtime components -> Application Insights + Log Analytics + Azure Monitor
+Provisioning -> Bicep
+Delivery -> Azure DevOps YAML pipelines
+```
+
+The detailed roadmap lives in the architecture docs and ADRs under `docs/`.
+
+## Repository guide
+
+| Path | Purpose |
+| --- | --- |
+| `src/api/BookFast.API` | Current API runtime with REST, GraphQL, diagnostics, and health endpoints |
+| `src/frontend` | Current frontend shell and local developer-facing UI |
+| `docs/architecture` | Architecture overview and bounded context documentation |
+| `docs/decisions` | Architecture decision records (ADRs) |
+| `infra/bicep` | Bicep naming, parameter, and module scaffolding for Azure rollout |
+| `pipelines/azure-devops` | Azure DevOps YAML pipeline scaffolding |
+
+## Local development
 
 ### Prerequisites
-- Git, Docker Desktop, .NET 10 SDK, Node.js 22+
- 
-### Steps
-1. Clone de repo
-2. Start docker-compose: `docker-compose up`
-3. Frontend: http://localhost:3000
-4. API: http://localhost:5000
+
+- .NET 10 SDK
+- Node.js 22+
+- Docker Desktop (optional, for the compose flow)
+
+### Run the API
+
+```powershell
+Set-Location src\api\BookFast.API
+dotnet run
+```
+
+The API is available at `http://localhost:5096` by default, with:
+
+- REST: `http://localhost:5096/api/v1`
+- GraphQL: `http://localhost:5096/graphql`
+- Health: `http://localhost:5096/health`
+
+### Run the frontend
+
+```powershell
+Set-Location src\frontend
+npm install
+npm run dev
+```
+
+The frontend shell is available at `http://localhost:5173`.
+
+> The frontend is intentionally decoupled from direct API calls at this stage. Managed CORS and consumer-facing API integration are part of the next hardening phase.
+
+### Run the local container flow
+
+```powershell
+docker compose up --build
+```
+
+This starts:
+
+- API on `http://localhost:5000`
+- Frontend on `http://localhost:3000`
+
+## Documentation
+
+- Architecture overview: `docs/architecture/overview.md`
+- Bounded contexts: `docs/architecture/bounded-contexts.md`
+- ADR index: `docs/decisions/`
 
 ## Git hooks
 
-Activeer na het clonen eenmalig de repo hooks:
+Activate the repository hooks once after cloning:
 
-`pwsh -ExecutionPolicy Bypass -File .\scripts\setup-git-hooks.ps1`
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\scripts\setup-git-hooks.ps1
+```
 
-De pre-commit hook draait dezelfde .NET format-check als CI voor `src/api/BookFast.API/BookFast.API.csproj` en blokkeert de commit als formatting ontbreekt.
+The pre-commit hook runs the same `.NET format` check as CI for `src/api/BookFast.API/BookFast.API.csproj`.
 
-Los formatting lokaal op met:
+To fix formatting locally:
 
-`Push-Location src\api; dotnet tool restore; dotnet tool run dotnet-format -- BookFast.API\BookFast.API.csproj; Pop-Location`
- 
-## Branchingstrategie
+```powershell
+Push-Location src\api
+dotnet tool restore
+dotnet tool run dotnet-format -- BookFast.API\BookFast.API.csproj
+Pop-Location
+```
 
-- `main`: Production-ready
-- `develop`: Integration branch en primaire CI branch
-- `feature/<naam>`: Feature branches vanaf `develop`
-- `hotfix/<naam>`: Only for critical production bugs
- 
-## Commitconventies
- 
-Gebruik Conventional Commits:
+## Source control conventions
 
-feat: add reservation endpoint fix: correct date validation docs: update branching strategy
+- `main`: hardened baseline
+- `develop`: integration branch
+- `feature/<name>`: feature work branched from `develop`
 
- 
-## Pull Request Process
- 
-1. Maak feature branch van `develop`
-2. Commit met descriptive messages
-3. Open PR
-4. Laat CI draaien
-5. Minimaal 1 review approval
-6. Merge naar `develop`
+Use Conventional Commits for local history and PRs.
