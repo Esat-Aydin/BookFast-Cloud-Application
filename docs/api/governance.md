@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document defines the current governance rules for the BookFast API surface after the phase-1 API hardening and phase-2 GraphQL expansion work.
+This document defines the current governance rules for the BookFast API surface after phase-1 API hardening, phase-2 GraphQL expansion, and phase-3 event-driven integration.
 
 ## API styles
 
@@ -19,6 +19,13 @@ This document defines the current governance rules for the BookFast API surface 
 - Mutations are not the primary contract for the platform.
 - Explicit filters, sort orders, paging limits, and execution-cost limits are part of the contract, not incidental implementation details.
 - The detailed consumer guide and example queries live in `docs/api/graphql.md`.
+
+## Integration eventing
+
+- REST writes may enqueue integration events, but they do not synchronously orchestrate downstream consumers.
+- `X-Correlation-Id` must flow from the HTTP edge into outbox messages and downstream transport metadata.
+- Consumers must tolerate duplicate deliveries because the producer uses at-least-once publication semantics.
+- Event-driven side effects are eventually consistent by design and must not change the authoritative REST write response contract.
 
 ## Versioning policy
 

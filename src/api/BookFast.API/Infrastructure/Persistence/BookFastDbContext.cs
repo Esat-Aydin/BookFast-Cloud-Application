@@ -7,6 +7,7 @@
 // ******************************************************************************
 
 using BookFast.API.Domain;
+using BookFast.API.Infrastructure.Eventing;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -24,10 +25,22 @@ public sealed class BookFastDbContext : DbContext
 
     public DbSet<ReservationEntity> Reservations => this.Set<ReservationEntity>();
 
+    public DbSet<OutboxMessageEntity> OutboxMessages => this.Set<OutboxMessageEntity>();
+
+    public DbSet<IntegrationConsumerStateEntity> IntegrationConsumerStates => this.Set<IntegrationConsumerStateEntity>();
+
+    public DbSet<IntegrationConsumerDeadLetterEntity> IntegrationConsumerDeadLetters => this.Set<IntegrationConsumerDeadLetterEntity>();
+
+    public DbSet<ReportingReservationSyncEntity> ReportingReservationSyncs => this.Set<ReportingReservationSyncEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureRoomEntity(modelBuilder.Entity<RoomEntity>());
         ConfigureReservationEntity(modelBuilder.Entity<ReservationEntity>());
+        ConfigureOutboxMessageEntity(modelBuilder.Entity<OutboxMessageEntity>());
+        ConfigureIntegrationConsumerStateEntity(modelBuilder.Entity<IntegrationConsumerStateEntity>());
+        ConfigureIntegrationConsumerDeadLetterEntity(modelBuilder.Entity<IntegrationConsumerDeadLetterEntity>());
+        ConfigureReportingReservationSyncEntity(modelBuilder.Entity<ReportingReservationSyncEntity>());
     }
 
     private static void ConfigureRoomEntity(EntityTypeBuilder<RoomEntity> entityBuilder)
@@ -70,6 +83,74 @@ public sealed class BookFastDbContext : DbContext
         {
             tableBuilder.HasCheckConstraint("CK_Reservations_TimeRange", "[StartUtc] < [EndUtc]");
         });
+    }
+
+    private static void ConfigureOutboxMessageEntity(EntityTypeBuilder<OutboxMessageEntity> entityBuilder)
+    {
+        entityBuilder.ToTable("OutboxMessages");
+        entityBuilder.HasKey(message => message.Id);
+        entityBuilder.Property(message => message.EventType).HasMaxLength(200).IsRequired();
+        entityBuilder.Property(message => message.AggregateType).HasMaxLength(100).IsRequired();
+        entityBuilder.Property(message => message.PayloadJson).IsRequired();
+        entityBuilder.Property(message => message.CorrelationId).HasMaxLength(128);
+        entityBuilder.Property(message => message.Status).HasConversion<int>().IsRequired();
+        entityBuilder.Property(message => message.LastError).HasMaxLength(4000);
+        entityBuilder.HasIndex(message => new
+        {
+            message.Status,
+            message.NextAttemptUtc
+        });
+        entityBuilder.HasIndex(message => new
+        {
+            message.AggregateType,
+            message.AggregateId
+        });
+    }
+
+    private static void ConfigureIntegrationConsumerStateEntity(EntityTypeBuilder<IntegrationConsumerStateEntity> entityBuilder)
+    {
+        entityBuilder.ToTable("IntegrationConsumerStates");
+        entityBuilder.HasKey(state => new
+        {
+            state.ConsumerName,
+            state.MessageId
+        });
+        entityBuilder.Property(state => state.ConsumerName).HasMaxLength(200).IsRequired();
+        entityBuilder.Property(state => state.EventType).HasMaxLength(200).IsRequired();
+        entityBuilder.Property(state => state.CorrelationId).HasMaxLength(128);
+        entityBuilder.HasIndex(state => state.ProcessedUtc);
+    }
+
+    private static void ConfigureIntegrationConsumerDeadLetterEntity(EntityTypeBuilder<IntegrationConsumerDeadLetterEntity> entityBuilder)
+    {
+        entityBuilder.ToTable("IntegrationConsumerDeadLetters");
+        entityBuilder.HasKey(deadLetter => deadLetter.Id);
+        entityBuilder.Property(deadLetter => deadLetter.ConsumerName).HasMaxLength(200).IsRequired();
+        entityBuilder.Property(deadLetter => deadLetter.EventType).HasMaxLength(200).IsRequired();
+        entityBuilder.Property(deadLetter => deadLetter.PayloadJson).IsRequired();
+        entityBuilder.Property(deadLetter => deadLetter.CorrelationId).HasMaxLength(128);
+        entityBuilder.Property(deadLetter => deadLetter.Reason).HasMaxLength(4000).IsRequired();
+        entityBuilder.HasIndex(deadLetter => new
+        {
+            deadLetter.ConsumerName,
+            deadLetter.MessageId
+        }).IsUnique();
+        entityBuilder.HasIndex(deadLetter => deadLetter.FailedUtc);
+    }
+
+    private static void ConfigureReportingReservationSyncEntity(EntityTypeBuilder<ReportingReservationSyncEntity> entityBuilder)
+    {
+        entityBuilder.ToTable("ReportingReservationSyncs");
+        entityBuilder.HasKey(sync => sync.ReservationId);
+        entityBuilder.Property(sync => sync.RoomCode).HasMaxLength(50).IsRequired();
+        entityBuilder.Property(sync => sync.RoomName).HasMaxLength(150).IsRequired();
+        entityBuilder.Property(sync => sync.Location).HasMaxLength(150).IsRequired();
+        entityBuilder.Property(sync => sync.ReservedBy).HasMaxLength(200).IsRequired();
+        entityBuilder.Property(sync => sync.Purpose).HasMaxLength(500);
+        entityBuilder.Property(sync => sync.Status).HasMaxLength(50).IsRequired();
+        entityBuilder.Property(sync => sync.CorrelationId).HasMaxLength(128);
+        entityBuilder.HasIndex(sync => sync.RoomId);
+        entityBuilder.HasIndex(sync => sync.LastSyncedUtc);
     }
 
     private static RoomEntity[] CreateSeedRooms()

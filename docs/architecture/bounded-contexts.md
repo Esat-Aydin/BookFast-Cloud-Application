@@ -8,7 +8,7 @@ BookFast is split into four bounded contexts so that the platform can grow towar
 | --- | --- | --- | --- |
 | Reservation API | Handles write-oriented reservation flows in the API | Move into dedicated application and infrastructure layers with persistent storage and domain events | REST `/api/v1/reservations` |
 | Query API | Exposes read-oriented room and reservation queries | Expand into richer consumer read models and GraphQL governance | REST `/api/v1/rooms`, GraphQL `/graphql` |
-| Async integration layer | Not implemented as a runtime yet | Publish events, process them through Service Bus and Azure Functions, and integrate with downstream consumers | Integration events, queues, topics, webhooks |
+| Async integration layer | Publishes durable integration events and maintains a fake downstream consumer for local flow validation | Move from local transport to Azure Service Bus plus Azure Functions consumers | Integration events, queues, topics, webhooks |
 | Platform and operations | Diagnostics and health run inside the API today | Add APIM, Entra ID, Key Vault, Application Insights, Log Analytics, alerts, and Azure DevOps delivery | APIM, telemetry, pipelines, Bicep |
 
 ## Reservation API
@@ -22,6 +22,7 @@ Owns command-style business actions such as creating or cancelling reservations.
 - Minimal API endpoints under `/api/v1/reservations`
 - Validation and ProblemDetails responses at the HTTP edge
 - SQL-backed execution through `IBookFastCatalog` and EF Core persistence
+- Durable outbox messages written in the same transaction as reservation creation
 
 ### Planned boundary
 
@@ -56,8 +57,10 @@ Owns asynchronous distribution of business events and background integration wor
 
 ### Current implementation
 
-- No dedicated runtime yet
-- No broker or outbox pattern yet
+- Durable outbox persisted in the BookFast SQL database
+- Background outbox dispatcher inside the API runtime
+- In-memory local publisher with fake reporting consumer for downstream flow validation
+- Azure Service Bus publisher ready through configuration
 
 ### Planned boundary
 

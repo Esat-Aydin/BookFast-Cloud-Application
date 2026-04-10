@@ -7,6 +7,7 @@
 // ******************************************************************************
 
 using BookFast.API.Domain;
+using BookFast.API.Infrastructure.Eventing;
 using BookFast.API.Infrastructure.Persistence;
 using BookFast.API.Services;
 
@@ -45,6 +46,7 @@ public sealed class SqlBookFastCatalogTests
             "Room reservation flow",
             startUtc,
             endUtc,
+            null,
             CancellationToken.None);
 
         IReadOnlyCollection<Reservation> reservations = await harness.Catalog.ListReservationsAsync(CancellationToken.None);
@@ -52,6 +54,41 @@ public sealed class SqlBookFastCatalogTests
         Assert.Equal(ReservationCreationStatus.Created, result.Status);
         Assert.NotNull(result.Reservation);
         Assert.Single(reservations);
+    }
+
+    [Fact]
+    public async Task CreateReservationAsync_ShouldQueueOutboxMessages_WhenReservationIsCreated()
+    {
+        await using SqlBookFastCatalogTestHarness harness = await SqlBookFastCatalogTestHarness.CreateAsync(
+            new DateTimeOffset(2026, 4, 10, 8, 0, 0, TimeSpan.Zero));
+
+        Room room = (await harness.Catalog.ListRoomsAsync(CancellationToken.None)).First();
+        DateTimeOffset startUtc = harness.TimeProvider.GetUtcNow().AddHours(2);
+        DateTimeOffset endUtc = startUtc.AddHours(1);
+
+        await harness.Catalog.CreateReservationAsync(
+            room.Id,
+            "Recruiter Demo",
+            "Outbox coverage",
+            startUtc,
+            endUtc,
+            "corr-phase3-test",
+            CancellationToken.None);
+
+        OutboxMessageEntity[] messages = await harness.DbContext.OutboxMessages
+            .OrderBy(message => message.EventType)
+            .ToArrayAsync(CancellationToken.None);
+
+        Assert.Equal(2, messages.Length);
+        Assert.All(messages, message =>
+        {
+            Assert.Equal(OutboxMessageStatus.Pending, message.Status);
+            Assert.Equal("corr-phase3-test", message.CorrelationId);
+            Assert.Equal(0, message.DeliveryAttemptCount);
+        });
+        Assert.Equal(
+            [IntegrationEventNames.ReservationCreated, IntegrationEventNames.RoomAvailabilityChanged],
+            messages.Select(message => message.EventType).ToArray());
     }
 
     [Fact]
@@ -73,6 +110,7 @@ public sealed class SqlBookFastCatalogTests
             "First reservation",
             firstStartUtc,
             firstEndUtc,
+            null,
             CancellationToken.None);
 
         ReservationCreationResult secondReservation = await harness.Catalog.CreateReservationAsync(
@@ -81,6 +119,7 @@ public sealed class SqlBookFastCatalogTests
             "Overlapping reservation",
             overlappingStartUtc,
             overlappingEndUtc,
+            null,
             CancellationToken.None);
 
         Assert.Equal(ReservationCreationStatus.Created, firstReservation.Status);
@@ -105,6 +144,7 @@ public sealed class SqlBookFastCatalogTests
             "Past reservation",
             startUtc,
             endUtc,
+            null,
             CancellationToken.None);
 
         IReadOnlyCollection<Reservation> reservations = await harness.Catalog.ListReservationsAsync(CancellationToken.None);
@@ -130,6 +170,7 @@ public sealed class SqlBookFastCatalogTests
             "Reservation for availability check",
             startUtc,
             endUtc,
+            null,
             CancellationToken.None);
 
         AvailabilityCheckResult availability = await harness.Catalog.CheckAvailabilityAsync(
@@ -161,6 +202,8 @@ public sealed class SqlBookFastCatalogTests
         }
 
         public SqlBookFastCatalog Catalog { get; }
+
+        public BookFastDbContext DbContext => this._dbContext;
 
         public FixedTimeProvider TimeProvider { get; }
 

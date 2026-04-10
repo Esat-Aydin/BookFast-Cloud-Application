@@ -6,6 +6,7 @@
 //  Project         : BookFast.API.Tests
 // ******************************************************************************
 
+using BookFast.API.Infrastructure.Eventing;
 using BookFast.API.Infrastructure.Persistence;
 using BookFast.API.Services;
 
@@ -37,7 +38,9 @@ public sealed class SqliteBookFastApiFactory : WebApplicationFactory<Program>
         configurationBuilder.AddInMemoryCollection(
 
         [
-            new KeyValuePair<string, string?>("Persistence:ApplyMigrationsOnStartup", bool.FalseString)
+            new KeyValuePair<string, string?>("Persistence:ApplyMigrationsOnStartup", bool.FalseString),
+            new KeyValuePair<string, string?>("Eventing:Mode", IntegrationTransportMode.InMemory.ToString()),
+            new KeyValuePair<string, string?>("Eventing:EnableBackgroundDispatcher", bool.FalseString)
         ]);
     });
 
