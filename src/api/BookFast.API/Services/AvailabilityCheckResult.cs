@@ -18,10 +18,10 @@ public sealed class AvailabilityCheckResult
         bool isAvailable,
         IReadOnlyCollection<Reservation> conflictingReservations)
     {
-        RoomExists = roomExists;
-        TimeRangeValid = timeRangeValid;
-        IsAvailable = isAvailable;
-        ConflictingReservations = conflictingReservations;
+        this.RoomExists = roomExists;
+        this.TimeRangeValid = timeRangeValid;
+        this.IsAvailable = isAvailable;
+        this.ConflictingReservations = conflictingReservations;
     }
 
     public bool RoomExists { get; }
@@ -34,17 +34,17 @@ public sealed class AvailabilityCheckResult
 
     public static AvailabilityCheckResult RoomNotFound()
     {
-        return new AvailabilityCheckResult(false, true, false, Array.Empty<Reservation>());
+        return new AvailabilityCheckResult(false, true, false, []);
     }
 
     public static AvailabilityCheckResult InvalidTimeRange()
     {
-        return new AvailabilityCheckResult(true, false, false, Array.Empty<Reservation>());
+        return new AvailabilityCheckResult(true, false, false, []);
     }
 
     public static AvailabilityCheckResult Available()
     {
-        return new AvailabilityCheckResult(true, true, true, Array.Empty<Reservation>());
+        return new AvailabilityCheckResult(true, true, true, []);
     }
 
     public static AvailabilityCheckResult Unavailable(IReadOnlyCollection<Reservation> conflictingReservations)

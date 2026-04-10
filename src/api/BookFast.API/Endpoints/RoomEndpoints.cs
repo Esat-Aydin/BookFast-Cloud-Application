@@ -1,6 +1,6 @@
 // ******************************************************************************
 //  © 2026 Ernst & Young Accountants LLP - www.ey.com
-// 
+//
 //  Author          : EY - Climate Change and Sustainability Services
 //  File:           : RoomEndpoints.cs
 //  Project         : BookFast.API
@@ -8,6 +8,7 @@
 
 using BookFast.API.Common;
 using BookFast.API.Contracts.Rooms;
+using BookFast.API.Diagnostics;
 using BookFast.API.Domain;
 using BookFast.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -43,9 +44,7 @@ public static class RoomEndpoints
     private static IResult GetRooms(IBookFastCatalog catalog)
     {
         IReadOnlyCollection<Room> rooms = catalog.ListRooms();
-        RoomResponse[] response = rooms
-            .Select(MapRoom)
-            .ToArray();
+        RoomResponse[] response = [.. rooms.Select(MapRoom)];
 
         return Results.Ok(response);
     }
@@ -62,11 +61,19 @@ public static class RoomEndpoints
         return Results.Ok(MapRoom(room));
     }
 
-    private static IResult GetAvailability(Guid roomId, DateTimeOffset fromUtc, DateTimeOffset toUtc, IBookFastCatalog catalog)
+    private static IResult GetAvailability(
+        Guid roomId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        IBookFastCatalog catalog,
+        HttpContext httpContext,
+        ILoggerFactory loggerFactory)
     {
+        ILogger logger = loggerFactory.CreateLogger("RoomEndpoints");
         Dictionary<string, string[]> errors = ValidateAvailabilityQuery(fromUtc, toUtc);
         if (errors.Count > 0)
         {
+            ApiRequestLog.LogValidationFailure(logger, httpContext, errors);
             return Results.ValidationProblem(errors);
         }
 
@@ -79,7 +86,9 @@ public static class RoomEndpoints
 
         if (!result.TimeRangeValid)
         {
-            return Results.ValidationProblem(CreateTimeRangeError());
+            Dictionary<string, string[]> timeRangeError = CreateTimeRangeError();
+            ApiRequestLog.LogValidationFailure(logger, httpContext, timeRangeError);
+            return Results.ValidationProblem(timeRangeError);
         }
 
         Room? room = catalog.GetRoom(roomId);
@@ -89,9 +98,7 @@ public static class RoomEndpoints
             return Results.NotFound(problem);
         }
 
-        AvailabilityConflictResponse[] conflicts = result.ConflictingReservations
-            .Select(MapConflict)
-            .ToArray();
+        AvailabilityConflictResponse[] conflicts = [.. result.ConflictingReservations.Select(MapConflict)];
 
         RoomAvailabilityResponse response = new(
             room.Id,
@@ -102,26 +109,37 @@ public static class RoomEndpoints
             result.IsAvailable,
             conflicts);
 
+        if (!result.IsAvailable)
+        {
+            ApiRequestLog.LogConflict(
+                logger,
+                httpContext,
+                "RoomAvailability",
+                roomId.ToString(),
+                conflicts.Length,
+                "The requested room has one or more overlapping confirmed reservations.");
+        }
+
         return Results.Ok(response);
     }
 
     private static Dictionary<string, string[]> ValidateAvailabilityQuery(DateTimeOffset fromUtc, DateTimeOffset toUtc)
     {
-        Dictionary<string, string[]> errors = new Dictionary<string, string[]>();
+        Dictionary<string, string[]> errors = [];
 
         if (fromUtc == default)
         {
-            errors["fromUtc"] = new[] { "fromUtc query parameter is required." };
+            errors["fromUtc"] = ["fromUtc query parameter is required."];
         }
 
         if (toUtc == default)
         {
-            errors["toUtc"] = new[] { "toUtc query parameter is required." };
+            errors["toUtc"] = ["toUtc query parameter is required."];
         }
 
         if (fromUtc != default && toUtc != default && fromUtc >= toUtc)
         {
-            errors["timeRange"] = new[] { "fromUtc must be earlier than toUtc." };
+            errors["timeRange"] = ["fromUtc must be earlier than toUtc."];
         }
 
         return errors;
@@ -131,7 +149,7 @@ public static class RoomEndpoints
     {
         return new Dictionary<string, string[]>
         {
-            ["timeRange"] = new[] { "The requested time range is invalid." }
+            ["timeRange"] = ["The requested time range is invalid."]
         };
     }
 

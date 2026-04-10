@@ -1,6 +1,6 @@
 // ******************************************************************************
 //  © 2026 Ernst & Young Accountants LLP - www.ey.com
-// 
+//
 //  Author          : EY - Climate Change and Sustainability Services
 //  File:           : InMemoryBookFastCatalog.cs
 //  Project         : BookFast.API
@@ -12,26 +12,24 @@ namespace BookFast.API.Services;
 
 public sealed class InMemoryBookFastCatalog : IBookFastCatalog
 {
-    private readonly object _syncRoot;
+    private readonly Lock _syncRoot;
     private readonly TimeProvider _timeProvider;
     private readonly List<Room> _rooms;
     private readonly List<Reservation> _reservations;
 
     public InMemoryBookFastCatalog(TimeProvider timeProvider)
     {
-        _syncRoot = new object();
-        _timeProvider = timeProvider;
-        _rooms = CreateSeedRooms();
-        _reservations = new List<Reservation>();
+        this._syncRoot = new Lock();
+        this._timeProvider = timeProvider;
+        this._rooms = CreateSeedRooms();
+        this._reservations = [];
     }
 
     public IReadOnlyCollection<Room> ListRooms()
     {
-        lock (_syncRoot)
+        lock (this._syncRoot)
         {
-            Room[] rooms = _rooms
-                .OrderBy(room => room.Code)
-                .ToArray();
+            Room[] rooms = [.. this._rooms.OrderBy(room => room.Code)];
 
             return rooms;
         }
@@ -39,20 +37,18 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
 
     public Room? GetRoom(Guid roomId)
     {
-        lock (_syncRoot)
+        lock (this._syncRoot)
         {
-            Room? room = _rooms.SingleOrDefault(candidate => candidate.Id == roomId);
+            Room? room = this._rooms.SingleOrDefault(candidate => candidate.Id == roomId);
             return room;
         }
     }
 
     public IReadOnlyCollection<Reservation> ListReservations()
     {
-        lock (_syncRoot)
+        lock (this._syncRoot)
         {
-            Reservation[] reservations = _reservations
-                .OrderBy(reservation => reservation.StartUtc)
-                .ToArray();
+            Reservation[] reservations = [.. this._reservations.OrderBy(reservation => reservation.StartUtc)];
 
             return reservations;
         }
@@ -60,9 +56,9 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
 
     public Reservation? GetReservation(Guid reservationId)
     {
-        lock (_syncRoot)
+        lock (this._syncRoot)
         {
-            Reservation? reservation = _reservations.SingleOrDefault(candidate => candidate.Id == reservationId);
+            Reservation? reservation = this._reservations.SingleOrDefault(candidate => candidate.Id == reservationId);
             return reservation;
         }
     }
@@ -79,15 +75,15 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
             return AvailabilityCheckResult.InvalidTimeRange();
         }
 
-        lock (_syncRoot)
+        lock (this._syncRoot)
         {
-            Room? room = _rooms.SingleOrDefault(candidate => candidate.Id == roomId);
+            Room? room = this._rooms.SingleOrDefault(candidate => candidate.Id == roomId);
             if (room is null)
             {
                 return AvailabilityCheckResult.RoomNotFound();
             }
 
-            Reservation[] conflicts = GetConflicts(roomId, fromUtc, toUtc);
+            Reservation[] conflicts = this.GetConflicts(roomId, fromUtc, toUtc);
             if (conflicts.Length == 0)
             {
                 return AvailabilityCheckResult.Available();
@@ -119,21 +115,21 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
             return ReservationCreationResult.InvalidTimeRange();
         }
 
-        DateTimeOffset now = _timeProvider.GetUtcNow();
+        DateTimeOffset now = this._timeProvider.GetUtcNow();
         if (startUtc < now)
         {
             return ReservationCreationResult.StartTimeInPast();
         }
 
-        lock (_syncRoot)
+        lock (this._syncRoot)
         {
-            Room? room = _rooms.SingleOrDefault(candidate => candidate.Id == roomId);
+            Room? room = this._rooms.SingleOrDefault(candidate => candidate.Id == roomId);
             if (room is null)
             {
                 return ReservationCreationResult.RoomNotFound();
             }
 
-            Reservation[] conflicts = GetConflicts(roomId, startUtc, endUtc);
+            Reservation[] conflicts = this.GetConflicts(roomId, startUtc, endUtc);
             if (conflicts.Length > 0)
             {
                 return ReservationCreationResult.Conflict(conflicts);
@@ -149,7 +145,7 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
                 now,
                 ReservationStatus.Confirmed);
 
-            _reservations.Add(reservation);
+            this._reservations.Add(reservation);
 
             return ReservationCreationResult.Created(reservation);
         }
@@ -157,40 +153,39 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
 
     private static List<Room> CreateSeedRooms()
     {
-        return new List<Room>
-        {
+        return
+        [
             new(
                 Guid.Parse("8C2D3CFD-2F3A-4C72-9F5B-7397C1D4B901"),
                 "AMS-BOARD-01",
                 "Amsterdam Boardroom",
                 "Amsterdam HQ - Floor 5",
                 12,
-                new[] { "Teams Room", "Whiteboard", "4K Display" }),
+                ["Teams Room", "Whiteboard", "4K Display"]),
             new(
                 Guid.Parse("A8B70B66-676C-4A1D-9EA6-865A0B918A72"),
                 "UTR-COLLAB-02",
                 "Utrecht Collaboration Hub",
                 "Utrecht Office - Floor 2",
                 8,
-                new[] { "Video Conferencing", "Whiteboard" }),
+                ["Video Conferencing", "Whiteboard"]),
             new(
                 Guid.Parse("C93B8E11-6D12-4F7C-8BF0-08FA0A1D2C54"),
                 "RTM-FOCUS-03",
                 "Rotterdam Focus Room",
                 "Rotterdam Office - Floor 3",
                 4,
-                new[] { "Quiet Zone", "Docking Station" })
-        };
+                ["Quiet Zone", "Docking Station"])
+        ];
     }
 
     private Reservation[] GetConflicts(Guid roomId, DateTimeOffset fromUtc, DateTimeOffset toUtc)
     {
-        Reservation[] conflicts = _reservations
-            .Where(reservation => reservation.RoomId == roomId)
-            .Where(reservation => reservation.Status == ReservationStatus.Confirmed)
-            .Where(reservation => reservation.StartUtc < toUtc && reservation.EndUtc > fromUtc)
-            .OrderBy(reservation => reservation.StartUtc)
-            .ToArray();
+        Reservation[] conflicts = [.. this._reservations
+                                      .Where(reservation => reservation.RoomId == roomId)
+                                      .Where(reservation => reservation.Status == ReservationStatus.Confirmed)
+                                      .Where(reservation => reservation.StartUtc < toUtc && reservation.EndUtc > fromUtc)
+                                      .OrderBy(reservation => reservation.StartUtc)];
 
         return conflicts;
     }

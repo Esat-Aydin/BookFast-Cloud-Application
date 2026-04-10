@@ -7,18 +7,34 @@
 // ******************************************************************************
 
 using BookFast.API.Endpoints;
+using BookFast.API.Diagnostics;
 using BookFast.API.Services;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole(options =>
+{
+    options.IncludeScopes = true;
+    options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ ";
+});
+
 builder.Services.AddOpenApi();
-builder.Services.AddProblemDetails();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+    };
+});
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHealthChecks();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton<IBookFastCatalog, InMemoryBookFastCatalog>();
 
 WebApplication app = builder.Build();
 
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
@@ -38,5 +54,3 @@ apiGroup.MapRoomEndpoints();
 apiGroup.MapReservationEndpoints();
 
 app.Run();
-
-public partial class Program;

@@ -1,6 +1,6 @@
 // ******************************************************************************
 //  © 2026 Ernst & Young Accountants LLP - www.ey.com
-// 
+//
 //  Author          : EY - Climate Change and Sustainability Services
 //  File:           : ReservationCreationResult.cs
 //  Project         : BookFast.API
@@ -17,9 +17,9 @@ public sealed class ReservationCreationResult
         Reservation? reservation,
         IReadOnlyCollection<Reservation> conflictingReservations)
     {
-        Status = status;
-        Reservation = reservation;
-        ConflictingReservations = conflictingReservations;
+        this.Status = status;
+        this.Reservation = reservation;
+        this.ConflictingReservations = conflictingReservations;
     }
 
     public ReservationCreationStatus Status { get; }
@@ -33,7 +33,7 @@ public sealed class ReservationCreationResult
         return new ReservationCreationResult(
             ReservationCreationStatus.Created,
             reservation,
-            Array.Empty<Reservation>());
+            []);
     }
 
     public static ReservationCreationResult RoomNotFound()
@@ -41,7 +41,7 @@ public sealed class ReservationCreationResult
         return new ReservationCreationResult(
             ReservationCreationStatus.RoomNotFound,
             null,
-            Array.Empty<Reservation>());
+            []);
     }
 
     public static ReservationCreationResult InvalidTimeRange()
@@ -49,7 +49,7 @@ public sealed class ReservationCreationResult
         return new ReservationCreationResult(
             ReservationCreationStatus.InvalidTimeRange,
             null,
-            Array.Empty<Reservation>());
+            []);
     }
 
     public static ReservationCreationResult StartTimeInPast()
@@ -57,7 +57,7 @@ public sealed class ReservationCreationResult
         return new ReservationCreationResult(
             ReservationCreationStatus.StartTimeInPast,
             null,
-            Array.Empty<Reservation>());
+            []);
     }
 
     public static ReservationCreationResult Conflict(IReadOnlyCollection<Reservation> conflictingReservations)
