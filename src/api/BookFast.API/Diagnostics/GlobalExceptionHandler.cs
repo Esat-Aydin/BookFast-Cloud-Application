@@ -6,6 +6,8 @@
 //  Project         : BookFast.API
 // ******************************************************************************
 
+using BookFast.API.Common;
+
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -40,16 +42,12 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             httpContext.TraceIdentifier,
             correlationId);
 
-        ProblemDetails problemDetails = new()
-        {
-            Status = StatusCodes.Status500InternalServerError,
-            Title = "Unexpected server error",
-            Detail = "An unexpected error occurred while processing the request.",
-            Instance = httpContext.Request.Path
-        };
-
-        problemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
-        problemDetails.Extensions["correlationId"] = correlationId;
+        ProblemDetails problemDetails = ApiProblemDetailsFactory.Create(
+            StatusCodes.Status500InternalServerError,
+            "Unexpected server error",
+            "An unexpected error occurred while processing the request.",
+            ApiRequestContext.GetRequestPath(httpContext),
+            ApiErrorCodes.UnexpectedServerError);
 
         httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
