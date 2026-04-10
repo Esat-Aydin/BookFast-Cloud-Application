@@ -1,12 +1,26 @@
-var builder = WebApplication.CreateBuilder(args);
+// ******************************************************************************
+//  © 2026 Ernst & Young Accountants LLP - www.ey.com
+// 
+//  Author          : EY - Climate Change and Sustainability Services
+//  File:           : Program.cs
+//  Project         : BookFast.API
+// ******************************************************************************
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+using BookFast.API.Endpoints;
+using BookFast.API.Services;
+
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails();
+builder.Services.AddHealthChecks();
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddSingleton<IBookFastCatalog, InMemoryBookFastCatalog>();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -14,28 +28,15 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.MapHealthChecks("/health")
+    .WithName("HealthCheck")
+    .WithTags("Monitoring");
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-       new WeatherForecast
-       (
-           DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-           Random.Shared.Next(-20, 55),
-           summaries[Random.Shared.Next(summaries.Length)]
-       ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+RouteGroupBuilder apiGroup = app.MapGroup("/api/v1");
+
+apiGroup.MapRoomEndpoints();
+apiGroup.MapReservationEndpoints();
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public partial class Program;
