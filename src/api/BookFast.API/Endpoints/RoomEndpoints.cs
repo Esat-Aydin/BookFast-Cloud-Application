@@ -44,7 +44,7 @@ public static class RoomEndpoints
     private static IResult GetRooms(IBookFastCatalog catalog)
     {
         IReadOnlyCollection<Room> rooms = catalog.ListRooms();
-        RoomResponse[] response = [.. rooms.Select(ApiContractMapper.MapRoom)];
+        RoomResponse[] response = [..rooms.Select(ApiContractMapper.MapRoom)];
 
         return Results.Ok(response);
     }

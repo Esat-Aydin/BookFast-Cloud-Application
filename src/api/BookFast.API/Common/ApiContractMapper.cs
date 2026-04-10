@@ -42,7 +42,7 @@ public static class ApiContractMapper
         DateTimeOffset toUtc,
         AvailabilityCheckResult result)
     {
-        AvailabilityConflictResponse[] conflicts = [.. result.ConflictingReservations.Select(MapAvailabilityConflict)];
+        AvailabilityConflictResponse[] conflicts = [..result.ConflictingReservations.Select(MapAvailabilityConflict)];
 
         return new RoomAvailabilityResponse(
             room.Id,

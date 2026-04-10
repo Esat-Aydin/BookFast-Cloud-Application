@@ -43,7 +43,7 @@ public sealed class RoomQueries
             rooms = rooms.Where(room => room.Capacity >= capacity);
         }
 
-        return [.. rooms.Skip(skip).Take(first).Select(ApiContractMapper.MapRoom)];
+        return [..rooms.Skip(skip).Take(first).Select(ApiContractMapper.MapRoom)];
     }
 
     public RoomResponse? GetRoom(Guid id, IBookFastCatalog catalog)
