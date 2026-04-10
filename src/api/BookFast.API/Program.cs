@@ -6,6 +6,7 @@
 //  Project         : BookFast.API
 // ******************************************************************************
 
+using BookFast.API.Common;
 using BookFast.API.Endpoints;
 using BookFast.API.Diagnostics;
 using BookFast.API.GraphQL;
@@ -26,12 +27,39 @@ builder.Logging.AddJsonConsole(options =>
 builder.Services.AddOpenApi();
 builder.Services.Configure<ObservabilityOptions>(
     builder.Configuration.GetSection(ObservabilityOptions.SectionName));
+builder.Services.Configure<ApiGovernanceOptions>(
+    builder.Configuration.GetSection(ApiGovernanceOptions.SectionName));
+builder.Services.Configure<ApiCorsOptions>(
+    builder.Configuration.GetSection(ApiCorsOptions.SectionName));
+ApiCorsOptions corsOptions = builder.Configuration.GetSection(ApiCorsOptions.SectionName).Get<ApiCorsOptions>() ?? new ApiCorsOptions();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(ApiCorsOptions.PolicyName, policyBuilder =>
+    {
+        if (corsOptions.AllowedOrigins.Length == 0)
+        {
+            return;
+        }
+
+        policyBuilder
+            .WithOrigins(corsOptions.AllowedOrigins)
+            .WithMethods(corsOptions.AllowedMethods)
+            .WithHeaders(corsOptions.AllowedHeaders)
+            .WithExposedHeaders(corsOptions.ExposedHeaders);
+    });
+});
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
     {
         context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
         context.ProblemDetails.Extensions["correlationId"] = ApiRequestContext.GetCorrelationId(context.HttpContext);
+
+        if (!context.ProblemDetails.Extensions.ContainsKey("errorCode"))
+        {
+            context.ProblemDetails.Extensions["errorCode"] =
+                ApiProblemDetailsFactory.ResolveDefaultErrorCode(context.ProblemDetails.Status);
+        }
     };
 });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -58,6 +86,7 @@ builder.Services
 WebApplication app = builder.Build();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<ApiGovernanceHeadersMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseExceptionHandler();
 
@@ -67,6 +96,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors(ApiCorsOptions.PolicyName);
 
 app.MapHealthChecks("/health")
    .WithName("HealthCheck")

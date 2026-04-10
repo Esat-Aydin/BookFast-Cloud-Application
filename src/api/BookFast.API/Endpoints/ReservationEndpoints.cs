@@ -60,17 +60,20 @@ public static class ReservationEndpoints
         if (reservation is null)
         {
             ProblemDetails problem = CreateReservationNotFoundProblem(reservationId);
-            return Results.NotFound(problem);
+            return CreateProblemResult(problem);
         }
 
         ReservationResponse? response = ApiContractMapper.MapReservation(reservation, catalog);
         if (response is null)
         {
-            return Results.Problem(
-                title: "Reservation data is inconsistent",
-                detail: "The reservation exists, but the associated room could not be resolved.",
-                instance: $"/api/v1/reservations/{reservationId}",
-                statusCode: StatusCodes.Status500InternalServerError);
+            ProblemDetails problem = ApiProblemDetailsFactory.Create(
+                StatusCodes.Status500InternalServerError,
+                "Reservation data is inconsistent",
+                "The reservation exists, but the associated room could not be resolved.",
+                $"/api/v1/reservations/{reservationId}",
+                ApiErrorCodes.ReservationDataInconsistent);
+
+            return CreateProblemResult(problem);
         }
 
         return Results.Ok(response);
@@ -87,7 +90,11 @@ public static class ReservationEndpoints
         if (errors.Count > 0)
         {
             ApiRequestLog.LogValidationFailure(logger, httpContext, errors);
-            return Results.ValidationProblem(errors);
+            return CreateValidationProblemResult(
+                httpContext,
+                errors,
+                "One or more reservation request fields are invalid.",
+                ApiErrorCodes.InvalidReservationRequest);
         }
 
         ReservationCreationResult result = catalog.CreateReservation(
@@ -104,16 +111,21 @@ public static class ReservationEndpoints
                 StatusCodes.Status404NotFound,
                 "Room not found",
                 $"No room exists with id '{request.RoomId}'.",
-                "/api/v1/reservations");
+                "/api/v1/reservations",
+                ApiErrorCodes.RoomNotFound);
 
-            return Results.NotFound(problem);
+            return CreateProblemResult(problem);
         }
 
         if (result.Status == ReservationCreationStatus.InvalidTimeRange)
         {
             Dictionary<string, string[]> timeRangeError = CreateTimeRangeError();
             ApiRequestLog.LogValidationFailure(logger, httpContext, timeRangeError);
-            return Results.ValidationProblem(timeRangeError);
+            return CreateValidationProblemResult(
+                httpContext,
+                timeRangeError,
+                "The requested reservation time range is invalid.",
+                ApiErrorCodes.InvalidReservationTimeRange);
         }
 
         if (result.Status == ReservationCreationStatus.StartTimeInPast)
@@ -124,7 +136,11 @@ public static class ReservationEndpoints
             };
 
             ApiRequestLog.LogValidationFailure(logger, httpContext, startTimeError);
-            return Results.ValidationProblem(startTimeError);
+            return CreateValidationProblemResult(
+                httpContext,
+                startTimeError,
+                "The reservation start time must be in the future.",
+                ApiErrorCodes.ReservationStartTimeInPast);
         }
 
         if (result.Status == ReservationCreationStatus.Conflict)
@@ -141,9 +157,10 @@ public static class ReservationEndpoints
                 StatusCodes.Status409Conflict,
                 "Reservation conflict",
                 "The selected room is not available in the requested time window.",
-                "/api/v1/reservations");
+                "/api/v1/reservations",
+                ApiErrorCodes.ReservationConflict);
 
-            return Results.Conflict(problem);
+            return CreateProblemResult(problem);
         }
 
         Reservation? reservation = result.Reservation;
@@ -155,11 +172,14 @@ public static class ReservationEndpoints
                 "ReservationCreateMissingEntity",
                 "Reservation creation returned no reservation instance.");
 
-            return Results.Problem(
-                title: "Reservation creation failed",
-                detail: "The reservation could not be created.",
-                instance: "/api/v1/reservations",
-                statusCode: StatusCodes.Status500InternalServerError);
+            ProblemDetails problem = ApiProblemDetailsFactory.Create(
+                StatusCodes.Status500InternalServerError,
+                "Reservation creation failed",
+                "The reservation could not be created.",
+                "/api/v1/reservations",
+                ApiErrorCodes.ReservationCreationFailed);
+
+            return CreateProblemResult(problem);
         }
 
         ReservationResponse? response = ApiContractMapper.MapReservation(reservation, catalog);
@@ -171,11 +191,14 @@ public static class ReservationEndpoints
                 "ReservationCreateMissingRoom",
                 "Reservation was created but the associated room could not be resolved.");
 
-            return Results.Problem(
-                title: "Reservation creation failed",
-                detail: "The reservation was created, but the associated room could not be resolved.",
-                instance: "/api/v1/reservations",
-                statusCode: StatusCodes.Status500InternalServerError);
+            ProblemDetails problem = ApiProblemDetailsFactory.Create(
+                StatusCodes.Status500InternalServerError,
+                "Reservation creation failed",
+                "The reservation was created, but the associated room could not be resolved.",
+                "/api/v1/reservations",
+                ApiErrorCodes.ReservationRoomResolutionFailed);
+
+            return CreateProblemResult(problem);
         }
 
         logger.LogInformation(
@@ -234,7 +257,31 @@ public static class ReservationEndpoints
             StatusCodes.Status404NotFound,
             "Reservation not found",
             $"No reservation exists with id '{reservationId}'.",
-            $"/api/v1/reservations/{reservationId}");
+            $"/api/v1/reservations/{reservationId}",
+            ApiErrorCodes.ReservationNotFound);
+    }
+
+    private static IResult CreateProblemResult(ProblemDetails problemDetails)
+    {
+        return Results.Json(
+            problemDetails,
+            statusCode: problemDetails.Status,
+            contentType: "application/problem+json");
+    }
+
+    private static IResult CreateValidationProblemResult(
+        HttpContext httpContext,
+        Dictionary<string, string[]> errors,
+        string detail,
+        string errorCode)
+    {
+        ValidationProblemDetails problemDetails = ApiProblemDetailsFactory.CreateValidationProblem(
+            errors,
+            detail,
+            ApiRequestContext.GetRequestPath(httpContext),
+            errorCode);
+
+        return CreateProblemResult(problemDetails);
     }
 
 }

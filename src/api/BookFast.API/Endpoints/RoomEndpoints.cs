@@ -74,28 +74,36 @@ public static class RoomEndpoints
         if (errors.Count > 0)
         {
             ApiRequestLog.LogValidationFailure(logger, httpContext, errors);
-            return Results.ValidationProblem(errors);
+            return CreateValidationProblemResult(
+                httpContext,
+                errors,
+                "One or more availability query parameters are invalid.",
+                ApiErrorCodes.InvalidAvailabilityQuery);
         }
 
         AvailabilityCheckResult result = catalog.CheckAvailability(roomId, fromUtc, toUtc);
         if (!result.RoomExists)
         {
             ProblemDetails problem = CreateRoomNotFoundProblem(roomId);
-            return Results.NotFound(problem);
+            return CreateProblemResult(problem);
         }
 
         if (!result.TimeRangeValid)
         {
             Dictionary<string, string[]> timeRangeError = CreateTimeRangeError();
             ApiRequestLog.LogValidationFailure(logger, httpContext, timeRangeError);
-            return Results.ValidationProblem(timeRangeError);
+            return CreateValidationProblemResult(
+                httpContext,
+                timeRangeError,
+                "The requested room availability window is invalid.",
+                ApiErrorCodes.InvalidAvailabilityQuery);
         }
 
         Room? room = catalog.GetRoom(roomId);
         if (room is null)
         {
             ProblemDetails problem = CreateRoomNotFoundProblem(roomId);
-            return Results.NotFound(problem);
+            return CreateProblemResult(problem);
         }
 
         RoomAvailabilityResponse response = ApiContractMapper.MapAvailability(room, fromUtc, toUtc, result);
@@ -150,7 +158,31 @@ public static class RoomEndpoints
             StatusCodes.Status404NotFound,
             "Room not found",
             $"No room exists with id '{roomId}'.",
-            $"/api/v1/rooms/{roomId}");
+            $"/api/v1/rooms/{roomId}",
+            ApiErrorCodes.RoomNotFound);
+    }
+
+    private static IResult CreateProblemResult(ProblemDetails problemDetails)
+    {
+        return Results.Json(
+            problemDetails,
+            statusCode: problemDetails.Status,
+            contentType: "application/problem+json");
+    }
+
+    private static IResult CreateValidationProblemResult(
+        HttpContext httpContext,
+        Dictionary<string, string[]> errors,
+        string detail,
+        string errorCode)
+    {
+        ValidationProblemDetails problemDetails = ApiProblemDetailsFactory.CreateValidationProblem(
+            errors,
+            detail,
+            ApiRequestContext.GetRequestPath(httpContext),
+            errorCode);
+
+        return CreateProblemResult(problemDetails);
     }
 
 }

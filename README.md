@@ -86,6 +86,7 @@ This starts:
 
 - Architecture overview: `docs/architecture/overview.md`
 - Bounded contexts: `docs/architecture/bounded-contexts.md`
+- API governance: `docs/api/governance.md`
 - ADR index: `docs/decisions/`
 
 ## Git hooks
