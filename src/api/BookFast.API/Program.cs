@@ -99,6 +99,7 @@ builder.Services
     .AddQueryType<Query>()
     .AddTypeExtension<RoomQueries>()
     .AddTypeExtension<ReservationQueries>()
+    .AddTypeExtension<ReadModelQueries>()
     .ModifyCostOptions(options =>
     {
         options.MaxFieldCost = 250;

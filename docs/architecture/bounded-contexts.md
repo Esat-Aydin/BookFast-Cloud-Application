@@ -21,7 +21,7 @@ Owns command-style business actions such as creating or cancelling reservations.
 
 - Minimal API endpoints under `/api/v1/reservations`
 - Validation and ProblemDetails responses at the HTTP edge
-- In-memory execution through `IBookFastCatalog`
+- SQL-backed execution through `IBookFastCatalog` and EF Core persistence
 
 ### Planned boundary
 
@@ -39,7 +39,8 @@ Owns consumer-facing read models for rooms, availability, and reservations.
 
 - REST endpoints under `/api/v1/rooms`
 - GraphQL endpoint on `/graphql`
-- Query guards for paging, time ranges, minimum capacity, and cost limits
+- Query guards for paging, time ranges, minimum capacity, sort/filter controls, and cost limits
+- Consumer-oriented availability and occupancy read models for richer query aggregation
 
 ### Planned boundary
 

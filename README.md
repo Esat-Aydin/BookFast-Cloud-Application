@@ -7,7 +7,7 @@ BookFast is a portfolio project that is being evolved into a compact Azure integ
 | Area | Current state |
 | --- | --- |
 | API | ASP.NET Core minimal API under `/api/v1` with OpenAPI in development, ProblemDetails, correlation-aware request logging, and health checks. |
-| Query surface | GraphQL endpoint on `/graphql` using Hot Chocolate with paging and cost guardrails. |
+| Query surface | GraphQL endpoint on `/graphql` using Hot Chocolate with consumer-oriented room, reservation, availability, and occupancy read models plus explicit paging, sorting, filtering, and cost guardrails. |
 | Persistence | EF Core persistence on SQL Server / Azure SQL, with seeded rooms, startup migrations in development, and database-backed readiness checks. |
 | Frontend | React/Vite shell for local demos, repository orientation, and future integration consumer flows. |
 | Delivery | GitHub Actions CI remains active today. Azure DevOps pipeline scaffolding lives under `pipelines/azure-devops/`. |
@@ -93,6 +93,7 @@ The compose flow wires the API to the SQL Server container and applies pending E
 - Architecture overview: `docs/architecture/overview.md`
 - Bounded contexts: `docs/architecture/bounded-contexts.md`
 - API governance: `docs/api/governance.md`
+- GraphQL consumer guide: `docs/api/graphql.md`
 - ADR index: `docs/decisions/`
 
 ## Git hooks

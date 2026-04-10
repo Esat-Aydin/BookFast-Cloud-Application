@@ -17,7 +17,7 @@ React frontend (local shell)
         v
 BookFast API (.NET 10 minimal API)
   |- REST write and query endpoints under /api/v1
-  |- GraphQL read endpoint under /graphql
+  |- GraphQL read endpoint under /graphql with consumer-driven availability and occupancy read models
   |- Health endpoints under /health, /health/live, /health/ready
   |- ProblemDetails, correlation middleware, request logging
         |
@@ -29,7 +29,7 @@ SQL Server / Azure SQL persistence via EF Core
 
 | Component | Current responsibility | Notes |
 | --- | --- | --- |
-| `src/api/BookFast.API` | Exposes room and reservation APIs, GraphQL reads, diagnostics, and health checks | Persistence now runs through EF Core on SQL Server / Azure SQL |
+| `src/api/BookFast.API` | Exposes room and reservation APIs, GraphQL reads, diagnostics, and health checks | Persistence runs through EF Core on SQL Server / Azure SQL and GraphQL now includes consumer-driven availability and occupancy overviews |
 | `src/frontend` | Provides a local platform shell for demos and repository orientation | Not yet a full reservation experience |
 | `.github/workflows/ci.yml` | Active validation pipeline | GitHub Actions remains the active CI path today |
 | `infra/bicep` | Azure IaC scaffold | Establishes naming, parameter, and module conventions |
