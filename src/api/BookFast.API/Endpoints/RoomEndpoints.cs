@@ -44,7 +44,7 @@ public static class RoomEndpoints
     private static IResult GetRooms(IBookFastCatalog catalog)
     {
         IReadOnlyCollection<Room> rooms = catalog.ListRooms();
-        RoomResponse[] response = [.. rooms.Select(MapRoom)];
+        RoomResponse[] response = [..rooms.Select(MapRoom)];
 
         return Results.Ok(response);
     }
@@ -98,7 +98,7 @@ public static class RoomEndpoints
             return Results.NotFound(problem);
         }
 
-        AvailabilityConflictResponse[] conflicts = [.. result.ConflictingReservations.Select(MapConflict)];
+        AvailabilityConflictResponse[] conflicts = [..result.ConflictingReservations.Select(MapConflict)];
 
         RoomAvailabilityResponse response = new(
             room.Id,

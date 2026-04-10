@@ -29,7 +29,7 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
     {
         lock (this._syncRoot)
         {
-            Room[] rooms = [.. this._rooms.OrderBy(room => room.Code)];
+            Room[] rooms = [..this._rooms.OrderBy(room => room.Code)];
 
             return rooms;
         }
@@ -48,7 +48,7 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
     {
         lock (this._syncRoot)
         {
-            Reservation[] reservations = [.. this._reservations.OrderBy(reservation => reservation.StartUtc)];
+            Reservation[] reservations = [..this._reservations.OrderBy(reservation => reservation.StartUtc)];
 
             return reservations;
         }
@@ -181,7 +181,7 @@ public sealed class InMemoryBookFastCatalog : IBookFastCatalog
 
     private Reservation[] GetConflicts(Guid roomId, DateTimeOffset fromUtc, DateTimeOffset toUtc)
     {
-        Reservation[] conflicts = [.. this._reservations
+        Reservation[] conflicts = [..this._reservations
                                       .Where(reservation => reservation.RoomId == roomId)
                                       .Where(reservation => reservation.Status == ReservationStatus.Confirmed)
                                       .Where(reservation => reservation.StartUtc < toUtc && reservation.EndUtc > fromUtc)

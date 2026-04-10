@@ -46,7 +46,7 @@ public static class ReservationEndpoints
     private static IResult GetReservations(IBookFastCatalog catalog)
     {
         IReadOnlyCollection<Reservation> reservations = catalog.ListReservations();
-        ReservationResponse[] response = [.. reservations
+        ReservationResponse[] response = [..reservations
             .Select(reservation => MapReservation(reservation, catalog))
             .Where(reservation => reservation is not null)
             .Cast<ReservationResponse>()];
@@ -118,7 +118,8 @@ public static class ReservationEndpoints
 
         if (result.Status == ReservationCreationStatus.StartTimeInPast)
         {
-            Dictionary<string, string[]> startTimeError = new() {
+            Dictionary<string, string[]> startTimeError = new()
+            {
                 ["startUtc"] = ["startUtc must be in the future."]
             };
 

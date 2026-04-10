@@ -65,7 +65,7 @@ public static class ApiRequestLog
 
     private static string CreateErrorSummary(IReadOnlyDictionary<string, string[]> errors)
     {
-        string[] entries = [.. errors.Select(error => $"{error.Key}={string.Join(", ", error.Value)}")];
+        string[] entries = [..errors.Select(error => $"{error.Key}={string.Join(", ", error.Value)}")];
 
         return string.Join(" | ", entries);
     }

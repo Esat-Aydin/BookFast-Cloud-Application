@@ -50,8 +50,10 @@ public sealed class RequestLoggingMiddleware
             httpContext.TraceIdentifier);
     }
 
-    private static LogLevel GetCompletionLogLevel(int statusCode) {
-        return statusCode switch {
+    private static LogLevel GetCompletionLogLevel(int statusCode)
+    {
+        return statusCode switch
+        {
             >= StatusCodes.Status500InternalServerError => LogLevel.Error,
             >= StatusCodes.Status400BadRequest => LogLevel.Warning,
             _ => LogLevel.Information
