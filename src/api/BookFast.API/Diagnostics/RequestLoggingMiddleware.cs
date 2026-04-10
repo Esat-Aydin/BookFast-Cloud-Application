@@ -24,30 +24,35 @@ public sealed class RequestLoggingMiddleware
     public async Task InvokeAsync(HttpContext httpContext)
     {
         long startTimestamp = Stopwatch.GetTimestamp();
-        string requestPath = GetRequestPath(httpContext);
+        string requestPath = ApiRequestContext.GetRequestPath(httpContext);
+        string correlationId = ApiRequestContext.GetCorrelationId(httpContext);
 
         this._logger.LogInformation(
             ApiLogEvents.RequestStarted,
-            "API request started. Method: {Method}. Path: {Path}. TraceId: {TraceId}",
+            "API request started. Method: {Method}. Path: {Path}. TraceId: {TraceId}. CorrelationId: {CorrelationId}",
             httpContext.Request.Method,
             requestPath,
-            httpContext.TraceIdentifier);
+            httpContext.TraceIdentifier,
+            correlationId);
 
         await this._next(httpContext);
 
         TimeSpan elapsed = Stopwatch.GetElapsedTime(startTimestamp);
         int statusCode = httpContext.Response.StatusCode;
         LogLevel completionLevel = GetCompletionLogLevel(statusCode);
+        string endpointDisplayName = ApiRequestContext.GetEndpointDisplayName(httpContext);
 
         this._logger.Log(
             completionLevel,
             ApiLogEvents.RequestCompleted,
-            "API request completed. Method: {Method}. Path: {Path}. StatusCode: {StatusCode}. ElapsedMs: {ElapsedMs}. TraceId: {TraceId}",
+            "API request completed. Method: {Method}. Path: {Path}. Endpoint: {Endpoint}. StatusCode: {StatusCode}. ElapsedMs: {ElapsedMs}. TraceId: {TraceId}. CorrelationId: {CorrelationId}",
             httpContext.Request.Method,
             requestPath,
+            endpointDisplayName,
             statusCode,
             Math.Round(elapsed.TotalMilliseconds, 2),
-            httpContext.TraceIdentifier);
+            httpContext.TraceIdentifier,
+            correlationId);
     }
 
     private static LogLevel GetCompletionLogLevel(int statusCode)
@@ -58,11 +63,5 @@ public sealed class RequestLoggingMiddleware
             >= StatusCodes.Status400BadRequest => LogLevel.Warning,
             _ => LogLevel.Information
         };
-    }
-
-    private static string GetRequestPath(HttpContext httpContext)
-    {
-        string? path = httpContext.Request.Path.Value;
-        return string.IsNullOrWhiteSpace(path) ? "/" : path;
     }
 }
