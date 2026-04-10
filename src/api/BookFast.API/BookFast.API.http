@@ -1,6 +1,37 @@
-@BookFast.API_HostAddress = http://localhost:5096
+@BookFastApiHost = http://localhost:5096
+@SeedRoomId = 8C2D3CFD-2F3A-4C72-9F5B-7397C1D4B901
 
-GET {{BookFast.API_HostAddress}}/weatherforecast/
+### Health
+GET {{BookFastApiHost}}/health
 Accept: application/json
 
-###
+### List rooms
+GET {{BookFastApiHost}}/api/v1/rooms
+Accept: application/json
+
+### Check room availability
+GET {{BookFastApiHost}}/api/v1/rooms/{{SeedRoomId}}/availability?fromUtc=2026-05-01T09:00:00Z&toUtc=2026-05-01T10:00:00Z
+Accept: application/json
+
+### Create reservation
+POST {{BookFastApiHost}}/api/v1/reservations
+Content-Type: application/json
+
+{
+  "roomId": "{{SeedRoomId}}",
+  "reservedBy": "integration-demo@bookfast.local",
+  "purpose": "Portfolio walkthrough",
+  "startUtc": "2026-05-01T09:00:00Z",
+  "endUtc": "2026-05-01T10:00:00Z"
+}
+
+### GraphQL rooms query
+POST {{BookFastApiHost}}/graphql
+Content-Type: application/json
+
+{
+  "query": "query Rooms($first: Int!) { rooms(first: $first) { id code name location capacity amenities } }",
+  "variables": {
+    "first": 5
+  }
+}

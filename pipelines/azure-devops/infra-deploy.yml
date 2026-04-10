@@ -1,0 +1,50 @@
+# Configure a workload identity-based Azure service connection before running this pipeline.
+trigger: none
+pr: none
+
+parameters:
+  - name: azureServiceConnection
+    type: string
+    default: 'bookfast-dev-service-connection'
+  - name: environmentName
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - test
+      - prod
+  - name: resourceGroupName
+    type: string
+    default: 'rg-bookfast-dev'
+  - name: location
+    type: string
+    default: 'westeurope'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: ValidateInfrastructure
+    displayName: Validate Bicep deployment
+    jobs:
+      - job: WhatIf
+        displayName: Run Bicep what-if
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: Create resource group and run what-if
+            inputs:
+              azureSubscription: ${{ parameters.azureServiceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az group create \
+                  --name ${{ parameters.resourceGroupName }} \
+                  --location ${{ parameters.location }}
+
+                az deployment group what-if \
+                  --resource-group ${{ parameters.resourceGroupName }} \
+                  --template-file infra/bicep/main.bicep \
+                  --parameters infra/bicep/main.${{ parameters.environmentName }}.bicepparam \
+                  --name bookfast-${{ parameters.environmentName }}-whatif

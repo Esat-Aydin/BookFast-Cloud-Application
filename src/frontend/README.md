@@ -1,16 +1,25 @@
-# React + Vite
+# BookFast frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The frontend currently serves as a lightweight platform shell for local demos and repository orientation. It is intentionally smaller than the target product experience: its job is to make the integration platform visible while the backend, Azure delivery, and observability foundations mature.
 
-Currently, two official plugins are available:
+## Responsibilities today
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Present the current BookFast platform surface
+- Point developers to the relevant runtime, architecture, and delivery assets
+- Provide a stable place to grow consumer-facing UI flows in later phases
 
-## React Compiler
+## Scripts
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```powershell
+npm install
+npm run dev
+npm run lint
+npm test -- --run
+npm run build
+```
 
-## Expanding the ESLint configuration
+## Next planned evolution
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Introduce managed API consumption once CORS and consumer contracts are formalized
+- Add reservation and availability experiences on top of the hardened API
+- Align the frontend with the eventual APIM-backed platform story
