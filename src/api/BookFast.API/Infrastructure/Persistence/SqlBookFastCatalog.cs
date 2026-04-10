@@ -10,6 +10,7 @@ using System.Data;
 using System.Text.Json;
 
 using BookFast.API.Domain;
+using BookFast.API.Infrastructure.Eventing;
 using BookFast.API.Services;
 
 using Microsoft.EntityFrameworkCore;
@@ -121,6 +122,7 @@ public sealed class SqlBookFastCatalog : IBookFastCatalog
         string? purpose,
         DateTimeOffset startUtc,
         DateTimeOffset endUtc,
+        string? correlationId,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(reservedBy))
@@ -168,11 +170,16 @@ public sealed class SqlBookFastCatalog : IBookFastCatalog
             Status = ReservationStatus.Confirmed
         };
 
+        Reservation createdReservation = MapReservation(reservation);
+        IReadOnlyCollection<OutboxMessageEntity> outboxMessages = BookFastIntegrationEventFactory
+            .CreateReservationCreatedMessages(createdReservation, now, correlationId);
+
         await this._dbContext.Reservations.AddAsync(reservation, cancellationToken);
+        await this._dbContext.OutboxMessages.AddRangeAsync(outboxMessages, cancellationToken);
         await this._dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        return ReservationCreationResult.Created(MapReservation(reservation));
+        return ReservationCreationResult.Created(createdReservation);
     }
 
     private async Task<ReservationEntity[]> GetConflictsAsync(

@@ -35,7 +35,7 @@ public sealed class RoomQueries
 
         IReadOnlyCollection<Room> rooms = await catalog.ListRoomsAsync(cancellationToken);
         IEnumerable<Room> filteredRooms = rooms;
-        string? normalizedSearch = Normalize(search);
+        string? normalizedSearch = GraphQLQueryGuard.NormalizeOptionalText(search);
         if (normalizedSearch is not null)
         {
             filteredRooms = filteredRooms.Where(room =>
@@ -44,7 +44,7 @@ public sealed class RoomQueries
                 room.Location.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase));
         }
 
-        string? normalizedLocation = Normalize(location);
+        string? normalizedLocation = GraphQLQueryGuard.NormalizeOptionalText(location);
         if (normalizedLocation is not null)
         {
             filteredRooms = filteredRooms.Where(room =>
@@ -127,15 +127,5 @@ public sealed class RoomQueries
             RoomSortOrder.CapacityDescending => rooms.OrderByDescending(room => room.Capacity),
             _ => rooms.OrderBy(room => room.Code, StringComparer.OrdinalIgnoreCase)
         };
-    }
-
-    private static string? Normalize(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        return value.Trim();
     }
 }

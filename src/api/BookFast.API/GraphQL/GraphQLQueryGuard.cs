@@ -53,6 +53,16 @@ public static class GraphQLQueryGuard
         }
     }
 
+    public static string? NormalizeOptionalText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim();
+    }
+
     public static GraphQLException CreateError(string code, string message)
     {
         return new GraphQLException(

@@ -9,6 +9,7 @@
 using BookFast.API.Common;
 using BookFast.API.Endpoints;
 using BookFast.API.Diagnostics;
+using BookFast.API.Infrastructure.Eventing;
 using BookFast.API.GraphQL;
 using BookFast.API.Infrastructure.Persistence;
 using BookFast.API.Services;
@@ -53,6 +54,7 @@ builder.Services.AddDbContext<BookFastDbContext>(options =>
             sqlServerOptions.EnableRetryOnFailure();
         });
 });
+builder.Services.AddBookFastEventing(builder.Configuration);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(ApiCorsOptions.PolicyName, policyBuilder =>

@@ -114,6 +114,7 @@ public static class ReservationEndpoints
             request.Purpose,
             request.StartUtc,
             request.EndUtc,
+            ApiRequestContext.GetCorrelationId(httpContext),
             cancellationToken);
 
         if (result.Status == ReservationCreationStatus.RoomNotFound)

@@ -36,5 +36,6 @@ public interface IBookFastCatalog
         string? purpose,
         DateTimeOffset startUtc,
         DateTimeOffset endUtc,
+        string? correlationId,
         CancellationToken cancellationToken);
 }

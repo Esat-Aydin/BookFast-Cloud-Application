@@ -50,15 +50,7 @@ public sealed class ReservationQueries
             filteredReservations = filteredReservations.Where(reservation => reservation.RoomId == roomId.Value);
         }
 
-        string? normalizedLocation = Normalize(location);
-        if (normalizedLocation is not null)
-        {
-            filteredReservations = filteredReservations.Where(reservation =>
-                roomsById.TryGetValue(reservation.RoomId, out Room? room) &&
-                room.Location.Equals(normalizedLocation, StringComparison.OrdinalIgnoreCase));
-        }
-
-        string? normalizedReservedBy = Normalize(reservedByContains);
+        string? normalizedReservedBy = GraphQLQueryGuard.NormalizeOptionalText(reservedByContains);
         if (normalizedReservedBy is not null)
         {
             filteredReservations = filteredReservations.Where(reservation =>
@@ -80,11 +72,12 @@ public sealed class ReservationQueries
             filteredReservations = filteredReservations.Where(reservation => reservation.StartUtc < toUtc.Value);
         }
 
-        Reservation[] page = [..ApplySorting(filteredReservations, sortBy)
-            .Skip(skip)
-            .Take(first)];
+        string? normalizedLocation = GraphQLQueryGuard.NormalizeOptionalText(location);
 
-        return [..page
+        return [..ApplySorting(filteredReservations, sortBy)
+            .Where(reservation => MatchesLocationFilter(reservation, roomsById, normalizedLocation))
+            .Skip(skip)
+            .Take(first)
             .Select(reservation => TryMapReservation(reservation, roomsById))
             .Where(response => response is not null)
             .Select(response => response!)];
@@ -111,35 +104,35 @@ public sealed class ReservationQueries
         return ApiContractMapper.MapReservation(reservation, room);
     }
 
-    private static IOrderedEnumerable<Reservation> ApplySorting(
+    private static IEnumerable<Reservation> ApplySorting(
         IEnumerable<Reservation> reservations,
         ReservationSortOrder sortBy)
     {
         return sortBy switch
         {
-            ReservationSortOrder.StartUtcDescending => reservations.OrderByDescending(reservation => reservation.StartUtc),
-            ReservationSortOrder.EndUtcAscending => reservations.OrderBy(reservation => reservation.EndUtc),
-            ReservationSortOrder.EndUtcDescending => reservations.OrderByDescending(reservation => reservation.EndUtc),
-            ReservationSortOrder.CreatedUtcAscending => reservations.OrderBy(reservation => reservation.CreatedUtc),
-            ReservationSortOrder.CreatedUtcDescending => reservations.OrderByDescending(reservation => reservation.CreatedUtc),
-            ReservationSortOrder.ReservedByAscending => reservations.OrderBy(
-                reservation => reservation.ReservedBy,
-                StringComparer.OrdinalIgnoreCase),
-            ReservationSortOrder.ReservedByDescending => reservations.OrderByDescending(
-                reservation => reservation.ReservedBy,
-                StringComparer.OrdinalIgnoreCase),
-            _ => reservations.OrderBy(reservation => reservation.StartUtc)
+            ReservationSortOrder.StartUtcDescending => reservations
+                .OrderByDescending(reservation => reservation.StartUtc)
+                .ThenByDescending(reservation => reservation.CreatedUtc),
+            ReservationSortOrder.EndUtcAscending => reservations
+                .OrderBy(reservation => reservation.EndUtc)
+                .ThenBy(reservation => reservation.StartUtc),
+            ReservationSortOrder.EndUtcDescending => reservations
+                .OrderByDescending(reservation => reservation.EndUtc)
+                .ThenByDescending(reservation => reservation.StartUtc),
+            ReservationSortOrder.CreatedUtcAscending => reservations
+                .OrderBy(reservation => reservation.CreatedUtc)
+                .ThenBy(reservation => reservation.StartUtc),
+            ReservationSortOrder.CreatedUtcDescending => reservations
+                .OrderByDescending(reservation => reservation.CreatedUtc)
+                .ThenByDescending(reservation => reservation.StartUtc),
+            ReservationSortOrder.ReservedByAscending => reservations
+                .OrderBy(reservation => reservation.ReservedBy, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(reservation => reservation.StartUtc),
+            ReservationSortOrder.ReservedByDescending => reservations
+                .OrderByDescending(reservation => reservation.ReservedBy, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(reservation => reservation.StartUtc),
+            _ => reservations.OrderBy(reservation => reservation.StartUtc).ThenBy(reservation => reservation.CreatedUtc)
         };
-    }
-
-    private static string? Normalize(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        return value.Trim();
     }
 
     private static ReservationResponse? TryMapReservation(
@@ -152,5 +145,19 @@ public sealed class ReservationQueries
         }
 
         return ApiContractMapper.MapReservation(reservation, room);
+    }
+
+    private static bool MatchesLocationFilter(
+        Reservation reservation,
+        IReadOnlyDictionary<Guid, Room> roomsById,
+        string? normalizedLocation)
+    {
+        if (normalizedLocation is null)
+        {
+            return true;
+        }
+
+        return roomsById.TryGetValue(reservation.RoomId, out Room? room) &&
+               room.Location.Equals(normalizedLocation, StringComparison.OrdinalIgnoreCase);
     }
 }

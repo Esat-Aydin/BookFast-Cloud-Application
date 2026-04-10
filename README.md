@@ -9,6 +9,7 @@ BookFast is a portfolio project that is being evolved into a compact Azure integ
 | API | ASP.NET Core minimal API under `/api/v1` with OpenAPI in development, ProblemDetails, correlation-aware request logging, and health checks. |
 | Query surface | GraphQL endpoint on `/graphql` using Hot Chocolate with consumer-oriented room, reservation, availability, and occupancy read models plus explicit paging, sorting, filtering, and cost guardrails. |
 | Persistence | EF Core persistence on SQL Server / Azure SQL, with seeded rooms, startup migrations in development, and database-backed readiness checks. |
+| Async integration | Durable SQL outbox, background dispatcher, local fake reporting consumer, and Service Bus-ready publisher configuration. |
 | Frontend | React/Vite shell for local demos, repository orientation, and future integration consumer flows. |
 | Delivery | GitHub Actions CI remains active today. Azure DevOps pipeline scaffolding lives under `pipelines/azure-devops/`. |
 | Infrastructure | Initial Bicep conventions and environment parameter scaffolding live under `infra/bicep/`. |
@@ -56,6 +57,13 @@ dotnet run
 
 The development profile targets SQL Server LocalDB by default. Override `ConnectionStrings__BookFastDatabase` when you want to use another SQL Server or Azure SQL instance.
 
+Local development uses the in-memory event transport by default. Switch to Azure Service Bus by setting:
+
+```powershell
+$env:Eventing__Mode = "ServiceBus"
+$env:ConnectionStrings__BookFastServiceBus = "<service-bus-connection-string>"
+```
+
 The API is available at `http://localhost:5096` by default, with:
 
 - REST: `http://localhost:5096/api/v1`
@@ -91,6 +99,7 @@ The compose flow wires the API to the SQL Server container and applies pending E
 ## Documentation
 
 - Architecture overview: `docs/architecture/overview.md`
+- Event-driven integration flow: `docs/architecture/event-driven-integration.md`
 - Bounded contexts: `docs/architecture/bounded-contexts.md`
 - API governance: `docs/api/governance.md`
 - GraphQL consumer guide: `docs/api/graphql.md`

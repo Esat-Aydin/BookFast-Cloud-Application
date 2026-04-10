@@ -20,9 +20,14 @@ BookFast API (.NET 10 minimal API)
   |- GraphQL read endpoint under /graphql with consumer-driven availability and occupancy read models
   |- Health endpoints under /health, /health/live, /health/ready
   |- ProblemDetails, correlation middleware, request logging
+  |- Durable outbox dispatcher for integration events
+        |
+        +--> Local in-memory integration transport --> fake reporting consumer
+        |
+        \--> Azure Service Bus transport when configured
         |
         v
-SQL Server / Azure SQL persistence via EF Core
+SQL Server / Azure SQL persistence via EF Core (business data + outbox + local reporting sync)
 ```
 
 ## Current responsibilities
