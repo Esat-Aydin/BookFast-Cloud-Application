@@ -1,4 +1,14 @@
 services:
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "1433:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${BOOKFAST_DB_PASSWORD:-BookFastDev123!}"
+    volumes:
+      - bookfast-sql-data:/var/opt/mssql
+
   api:
     build:
       context: ./src/api/BookFast.API
@@ -8,6 +18,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:5000
+      ConnectionStrings__BookFastDatabase: "Server=sql-server,1433;Database=BookFast;User Id=sa;Password=${BOOKFAST_DB_PASSWORD:-BookFastDev123!};Encrypt=True;TrustServerCertificate=True"
+      Persistence__ApplyMigrationsOnStartup: "true"
+    depends_on:
+      - sql-server
 
   frontend:
     build:
@@ -17,3 +31,6 @@ services:
       - "3000:3000"
     depends_on:
       - api
+
+volumes:
+  bookfast-sql-data:

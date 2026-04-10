@@ -22,14 +22,14 @@ BookFast API (.NET 10 minimal API)
   |- ProblemDetails, correlation middleware, request logging
         |
         v
-InMemoryBookFastCatalog
+SQL Server / Azure SQL persistence via EF Core
 ```
 
 ## Current responsibilities
 
 | Component | Current responsibility | Notes |
 | --- | --- | --- |
-| `src/api/BookFast.API` | Exposes room and reservation APIs, GraphQL reads, diagnostics, and health checks | Persistence is still in-memory |
+| `src/api/BookFast.API` | Exposes room and reservation APIs, GraphQL reads, diagnostics, and health checks | Persistence now runs through EF Core on SQL Server / Azure SQL |
 | `src/frontend` | Provides a local platform shell for demos and repository orientation | Not yet a full reservation experience |
 | `.github/workflows/ci.yml` | Active validation pipeline | GitHub Actions remains the active CI path today |
 | `infra/bicep` | Azure IaC scaffold | Establishes naming, parameter, and module conventions |

@@ -43,28 +43,37 @@ public static class ReservationEndpoints
         return apiGroup;
     }
 
-    private static IResult GetReservations(IBookFastCatalog catalog)
+    private static async Task<IResult> GetReservations(
+        IBookFastCatalog catalog,
+        CancellationToken cancellationToken)
     {
-        IReadOnlyCollection<Reservation> reservations = catalog.ListReservations();
+        IReadOnlyCollection<Reservation> reservations = await catalog.ListReservationsAsync(cancellationToken);
+        Guid[] roomIds = [..reservations
+            .Select(reservation => reservation.RoomId)
+            .Distinct()];
+        IReadOnlyDictionary<Guid, Room> roomsById = await catalog.ListRoomsByIdsAsync(roomIds, cancellationToken);
         ReservationResponse[] response = [..reservations
-            .Select(reservation => ApiContractMapper.MapReservation(reservation, catalog))
+            .Select(reservation => TryMapReservation(reservation, roomsById))
             .Where(reservation => reservation is not null)
             .Select(reservation => reservation!)];
 
         return Results.Ok(response);
     }
 
-    private static IResult GetReservationById(Guid reservationId, IBookFastCatalog catalog)
+    private static async Task<IResult> GetReservationById(
+        Guid reservationId,
+        IBookFastCatalog catalog,
+        CancellationToken cancellationToken)
     {
-        Reservation? reservation = catalog.GetReservation(reservationId);
+        Reservation? reservation = await catalog.GetReservationAsync(reservationId, cancellationToken);
         if (reservation is null)
         {
             ProblemDetails problem = CreateReservationNotFoundProblem(reservationId);
             return CreateProblemResult(problem);
         }
 
-        ReservationResponse? response = ApiContractMapper.MapReservation(reservation, catalog);
-        if (response is null)
+        Room? room = await catalog.GetRoomAsync(reservation.RoomId, cancellationToken);
+        if (room is null)
         {
             ProblemDetails problem = ApiProblemDetailsFactory.Create(
                 StatusCodes.Status500InternalServerError,
@@ -76,14 +85,16 @@ public static class ReservationEndpoints
             return CreateProblemResult(problem);
         }
 
+        ReservationResponse response = ApiContractMapper.MapReservation(reservation, room);
         return Results.Ok(response);
     }
 
-    private static IResult CreateReservation(
+    private static async Task<IResult> CreateReservation(
         CreateReservationRequest request,
         IBookFastCatalog catalog,
         ILoggerFactory loggerFactory,
-        HttpContext httpContext)
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
     {
         ILogger logger = loggerFactory.CreateLogger("ReservationEndpoints");
         Dictionary<string, string[]> errors = ValidateCreateReservationRequest(request);
@@ -97,12 +108,13 @@ public static class ReservationEndpoints
                 ApiErrorCodes.InvalidReservationRequest);
         }
 
-        ReservationCreationResult result = catalog.CreateReservation(
+        ReservationCreationResult result = await catalog.CreateReservationAsync(
             request.RoomId,
             request.ReservedBy,
             request.Purpose,
             request.StartUtc,
-            request.EndUtc);
+            request.EndUtc,
+            cancellationToken);
 
         if (result.Status == ReservationCreationStatus.RoomNotFound)
         {
@@ -182,8 +194,8 @@ public static class ReservationEndpoints
             return CreateProblemResult(problem);
         }
 
-        ReservationResponse? response = ApiContractMapper.MapReservation(reservation, catalog);
-        if (response is null)
+        Room? room = await catalog.GetRoomAsync(reservation.RoomId, cancellationToken);
+        if (room is null)
         {
             ApiRequestLog.LogFailure(
                 logger,
@@ -201,6 +213,7 @@ public static class ReservationEndpoints
             return CreateProblemResult(problem);
         }
 
+        ReservationResponse response = ApiContractMapper.MapReservation(reservation, room);
         logger.LogInformation(
             "Reservation {ReservationId} created for room {RoomId} between {StartUtc} and {EndUtc}.",
             reservation.Id,
@@ -282,6 +295,18 @@ public static class ReservationEndpoints
             errorCode);
 
         return CreateProblemResult(problemDetails);
+    }
+
+    private static ReservationResponse? TryMapReservation(
+        Reservation reservation,
+        IReadOnlyDictionary<Guid, Room> roomsById)
+    {
+        if (!roomsById.TryGetValue(reservation.RoomId, out Room? room))
+        {
+            return null;
+        }
+
+        return ApiContractMapper.MapReservation(reservation, room);
     }
 
 }

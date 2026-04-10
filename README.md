@@ -8,7 +8,7 @@ BookFast is a portfolio project that is being evolved into a compact Azure integ
 | --- | --- |
 | API | ASP.NET Core minimal API under `/api/v1` with OpenAPI in development, ProblemDetails, correlation-aware request logging, and health checks. |
 | Query surface | GraphQL endpoint on `/graphql` using Hot Chocolate with paging and cost guardrails. |
-| Persistence | The catalog is still in-memory. Azure SQL is a planned next phase and is not implemented yet. |
+| Persistence | EF Core persistence on SQL Server / Azure SQL, with seeded rooms, startup migrations in development, and database-backed readiness checks. |
 | Frontend | React/Vite shell for local demos, repository orientation, and future integration consumer flows. |
 | Delivery | GitHub Actions CI remains active today. Azure DevOps pipeline scaffolding lives under `pipelines/azure-devops/`. |
 | Infrastructure | Initial Bicep conventions and environment parameter scaffolding live under `infra/bicep/`. |
@@ -45,6 +45,7 @@ The detailed roadmap lives in the architecture docs and ADRs under `docs/`.
 - .NET 10 SDK
 - Node.js 22+
 - Docker Desktop (optional, for the compose flow)
+- SQL Server LocalDB or an alternative SQL Server / Azure SQL connection string for direct `dotnet run`
 
 ### Run the API
 
@@ -52,6 +53,8 @@ The detailed roadmap lives in the architecture docs and ADRs under `docs/`.
 Set-Location src\api\BookFast.API
 dotnet run
 ```
+
+The development profile targets SQL Server LocalDB by default. Override `ConnectionStrings__BookFastDatabase` when you want to use another SQL Server or Azure SQL instance.
 
 The API is available at `http://localhost:5096` by default, with:
 
@@ -69,7 +72,7 @@ npm run dev
 
 The frontend shell is available at `http://localhost:5173`.
 
-> The frontend is intentionally decoupled from direct API calls at this stage. Managed CORS and consumer-facing API integration are part of the next hardening phase.
+> Local CORS is configured for `http://localhost:3000` and `http://localhost:5173`. The frontend remains intentionally lightweight and repository-focused at this stage.
 
 ### Run the local container flow
 
@@ -79,8 +82,11 @@ docker compose up --build
 
 This starts:
 
+- SQL Server on `localhost:1433`
 - API on `http://localhost:5000`
 - Frontend on `http://localhost:3000`
+
+The compose flow wires the API to the SQL Server container and applies pending EF Core migrations during startup.
 
 ## Documentation
 

@@ -12,20 +12,29 @@ namespace BookFast.API.Services;
 
 public interface IBookFastCatalog
 {
-    IReadOnlyCollection<Room> ListRooms();
+    Task<IReadOnlyCollection<Room>> ListRoomsAsync(CancellationToken cancellationToken);
 
-    Room? GetRoom(Guid roomId);
+    Task<IReadOnlyDictionary<Guid, Room>> ListRoomsByIdsAsync(
+        IEnumerable<Guid> roomIds,
+        CancellationToken cancellationToken);
 
-    IReadOnlyCollection<Reservation> ListReservations();
+    Task<Room?> GetRoomAsync(Guid roomId, CancellationToken cancellationToken);
 
-    Reservation? GetReservation(Guid reservationId);
+    Task<IReadOnlyCollection<Reservation>> ListReservationsAsync(CancellationToken cancellationToken);
 
-    AvailabilityCheckResult CheckAvailability(Guid roomId, DateTimeOffset fromUtc, DateTimeOffset toUtc);
+    Task<Reservation?> GetReservationAsync(Guid reservationId, CancellationToken cancellationToken);
 
-    ReservationCreationResult CreateReservation(
+    Task<AvailabilityCheckResult> CheckAvailabilityAsync(
+        Guid roomId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken);
+
+    Task<ReservationCreationResult> CreateReservationAsync(
         Guid roomId,
         string reservedBy,
         string? purpose,
         DateTimeOffset startUtc,
-        DateTimeOffset endUtc);
+        DateTimeOffset endUtc,
+        CancellationToken cancellationToken);
 }
