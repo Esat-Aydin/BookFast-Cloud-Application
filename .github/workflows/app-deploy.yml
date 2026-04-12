@@ -1,0 +1,301 @@
+name: App Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: GitHub environment that holds the Azure OIDC secrets and release approvals.
+        required: true
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+        default: dev
+      key_vault_name:
+        description: Azure Key Vault name containing the runtime configuration secrets.
+        required: true
+        type: string
+      resource_group_name:
+        description: Azure resource group containing the API and Function App.
+        required: true
+        type: string
+      api_app_name:
+        description: Azure App Service name for the BookFast API.
+        required: true
+        type: string
+      function_app_name:
+        description: Azure Function App name for BookFast.Reporting.Functions.
+        required: true
+        type: string
+      service_bus_topic_name:
+        description: Service Bus topic used by the outbox publisher.
+        required: true
+        type: string
+        default: bookfast.integration
+      service_bus_subscription_name:
+        description: Service Bus subscription consumed by the reporting function.
+        required: true
+        type: string
+        default: reporting
+      api_health_check_url:
+        description: Optional health endpoint for a post-deploy smoke test.
+        required: false
+        type: string
+        default: ""
+      deploy_api:
+        description: Build and deploy the API.
+        required: true
+        type: boolean
+        default: true
+      deploy_functions:
+        description: Build and deploy the Azure Functions app.
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: app-deploy-${{ inputs.environment_name }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_VERSION: 10.0.x
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  package-api:
+    name: Package API
+    if: ${{ inputs.deploy_api }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dotnet tools
+        run: dotnet tool restore
+        working-directory: src/api
+
+      - name: Restore API dependencies
+        run: dotnet restore src/api/BookFast.API.Tests/BookFast.API.Tests.csproj
+
+      - name: Check API formatting
+        run: dotnet tool run dotnet-format -- BookFast.API/BookFast.API.csproj --check
+        working-directory: src/api
+
+      - name: Build API tests
+        run: dotnet build src/api/BookFast.API.Tests/BookFast.API.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
+
+      - name: Run API unit tests
+        run: dotnet test src/api/BookFast.API.Tests/BookFast.API.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --logger "trx;LogFileName=api-test-results.trx" --no-build --no-restore
+
+      - name: Publish API
+        run: dotnet publish src/api/BookFast.API/BookFast.API.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --output "${RUNNER_TEMP}/api-published" --no-restore
+
+      - name: Archive API package
+        run: |
+          cd "${RUNNER_TEMP}/api-published"
+          zip -r "${RUNNER_TEMP}/api-package.zip" .
+
+      - name: Upload API package
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-package
+          path: ${{ runner.temp }}/api-package.zip
+          retention-days: 5
+
+  package-functions:
+    name: Package Functions
+    if: ${{ inputs.deploy_functions }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dotnet tools
+        run: dotnet tool restore
+        working-directory: src/api
+
+      - name: Restore Functions dependencies
+        run: dotnet restore src/functions/BookFast.Reporting.Functions.Tests/BookFast.Reporting.Functions.Tests.csproj
+
+      - name: Check Functions formatting
+        run: dotnet tool run dotnet-format -- ../functions/BookFast.Reporting.Functions/BookFast.Reporting.Functions.csproj --check
+        working-directory: src/api
+
+      - name: Check Functions test formatting
+        run: dotnet tool run dotnet-format -- ../functions/BookFast.Reporting.Functions.Tests/BookFast.Reporting.Functions.Tests.csproj --check
+        working-directory: src/api
+
+      - name: Build Functions tests
+        run: dotnet build src/functions/BookFast.Reporting.Functions.Tests/BookFast.Reporting.Functions.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
+
+      - name: Run Functions unit tests
+        run: dotnet test src/functions/BookFast.Reporting.Functions.Tests/BookFast.Reporting.Functions.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --logger "trx;LogFileName=functions-test-results.trx" --no-build --no-restore
+
+      - name: Publish Functions
+        run: dotnet publish src/functions/BookFast.Reporting.Functions/BookFast.Reporting.Functions.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --output "${RUNNER_TEMP}/functions-published" --no-restore
+
+      - name: Archive Functions package
+        run: |
+          cd "${RUNNER_TEMP}/functions-published"
+          zip -r "${RUNNER_TEMP}/functions-package.zip" .
+
+      - name: Upload Functions package
+        uses: actions/upload-artifact@v4
+        with:
+          name: functions-package
+          path: ${{ runner.temp }}/functions-package.zip
+          retention-days: 5
+
+  deploy-api:
+    name: Deploy API
+    if: ${{ inputs.deploy_api }}
+    needs: package-api
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment_name }}
+
+    steps:
+      - name: Download API package
+        uses: actions/download-artifact@v4
+        with:
+          name: api-package
+          path: ${{ runner.temp }}
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Configure API app settings
+        shell: bash
+        env:
+          AZURE_CORE_OUTPUT: none
+        run: |
+          set -euo pipefail
+
+          fetch_secret() {
+            local secret_name="$1"
+            local secret_value
+            secret_value="$(az keyvault secret show --vault-name "${{ inputs.key_vault_name }}" --name "$secret_name" --query value -o tsv)"
+            echo "::add-mask::$secret_value"
+            printf '%s' "$secret_value"
+          }
+
+          api_sql_connection_string="$(fetch_secret apiSqlConnectionString)"
+          api_service_bus_connection_string="$(fetch_secret apiServiceBusConnectionString)"
+
+          settings=(
+            "Eventing__Mode=ServiceBus"
+            "Eventing__ServiceBusTopicName=${{ inputs.service_bus_topic_name }}"
+            "ConnectionStrings__BookFastDatabase=${api_sql_connection_string}"
+            "ConnectionStrings__BookFastServiceBus=${api_service_bus_connection_string}"
+          )
+
+          az webapp config appsettings set \
+            --resource-group "${{ inputs.resource_group_name }}" \
+            --name "${{ inputs.api_app_name }}" \
+            --settings "${settings[@]}" \
+            --output none
+
+      - name: Deploy API package
+        shell: bash
+        env:
+          AZURE_CORE_OUTPUT: none
+        run: |
+          set -euo pipefail
+
+          az webapp deploy \
+            --resource-group "${{ inputs.resource_group_name }}" \
+            --name "${{ inputs.api_app_name }}" \
+            --src-path "${RUNNER_TEMP}/api-package.zip" \
+            --type zip \
+            --clean true \
+            --output none
+
+      - name: Smoke test API health endpoint
+        if: ${{ inputs.api_health_check_url != '' }}
+        run: curl --fail --silent --show-error "${{ inputs.api_health_check_url }}"
+
+  deploy-functions:
+    name: Deploy Functions
+    if: ${{ inputs.deploy_functions }}
+    needs: package-functions
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment_name }}
+
+    steps:
+      - name: Download Functions package
+        uses: actions/download-artifact@v4
+        with:
+          name: functions-package
+          path: ${{ runner.temp }}
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Configure Function App settings
+        shell: bash
+        env:
+          AZURE_CORE_OUTPUT: none
+        run: |
+          set -euo pipefail
+
+          fetch_secret() {
+            local secret_name="$1"
+            local secret_value
+            secret_value="$(az keyvault secret show --vault-name "${{ inputs.key_vault_name }}" --name "$secret_name" --query value -o tsv)"
+            echo "::add-mask::$secret_value"
+            printf '%s' "$secret_value"
+          }
+
+          function_sql_connection_string="$(fetch_secret functionSqlConnectionString)"
+          function_service_bus_connection_string="$(fetch_secret functionServiceBusConnectionString)"
+
+          settings=(
+            "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated"
+            "ServiceBus__TopicName=${{ inputs.service_bus_topic_name }}"
+            "ServiceBus__SubscriptionName=${{ inputs.service_bus_subscription_name }}"
+            "ConnectionStrings__BookFastDatabase=${function_sql_connection_string}"
+            "BookFastServiceBus=${function_service_bus_connection_string}"
+          )
+
+          az functionapp config appsettings set \
+            --resource-group "${{ inputs.resource_group_name }}" \
+            --name "${{ inputs.function_app_name }}" \
+            --settings "${settings[@]}" \
+            --output none
+
+      - name: Deploy Functions package
+        shell: bash
+        env:
+          AZURE_CORE_OUTPUT: none
+        run: |
+          set -euo pipefail
+
+          az functionapp deployment source config-zip \
+            --resource-group "${{ inputs.resource_group_name }}" \
+            --name "${{ inputs.function_app_name }}" \
+            --src "${RUNNER_TEMP}/functions-package.zip" \
+            --output none

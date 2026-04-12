@@ -18,28 +18,26 @@ BookFast/
 |  |- api/BookFast.API
 |  |- api/BookFast.API.Tests
 |  |- frontend
-|  \- functions                # reserved for future Azure Functions work
+|  |- functions
+|  \- shared/BookFast.Integration.Contracts
 |- docs/
 |  |- architecture
 |  |- decisions
-|  \- runbooks                 # reserved for later operational documentation
+|  \- runbooks
 |- infra/
-|  \- bicep
-|- pipelines/
-|  \- azure-devops
-\- .github/workflows           # current active CI path
+|  \- terraform
+\- .github/workflows
 ```
 
 Key rules:
 
 - Runtime projects stay under `src/`.
 - Architecture and decision records stay under `docs/`.
-- Azure provisioning assets stay under `infra/bicep`.
-- Azure DevOps delivery assets stay under `pipelines/azure-devops`.
-- GitHub Actions may remain active until Azure DevOps becomes the delivery system of record.
+- Azure provisioning assets stay under `infra/terraform`.
+- GitHub Actions workflows under `.github/workflows` are the delivery system of record.
 
 ## Consequences
 
 - Current implementation and target platform scaffolding are visible without pretending that later phases already exist.
 - Runtime changes, delivery changes, and architecture documentation can evolve independently.
-- The project is ready to grow with Azure Functions, Bicep modules, Azure DevOps YAML, and runbooks without another repository reshuffle.
+- The project is ready to grow with Azure Functions, Terraform modules, GitHub Actions workflows, and runbooks without another repository reshuffle.

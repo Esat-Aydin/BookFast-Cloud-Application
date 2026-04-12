@@ -1,48 +1,81 @@
 # BookFast
 
-BookFast is a portfolio project that is being evolved into a compact Azure integration platform for room reservations. The current implementation already exposes a .NET 10 minimal API, a GraphQL read surface, structured diagnostics, and a lightweight React shell. Around that runtime, the repository now carries the architecture, ADR, Bicep, and Azure DevOps scaffolding needed to grow toward Azure API Management, Azure Functions, Service Bus, Azure SQL, and full operational visibility.
+BookFast is a hands-on learning project that I use to design, build, and evolve a compact Azure-oriented integration platform around a room reservation domain. The business scope is intentionally simple so the technical design stays visible: versioned APIs, GraphQL reads, asynchronous integration, Azure Functions, SQL persistence, delivery automation, and platform documentation all live in one repository.
 
-## Current baseline
+## Why this project exists
 
-| Area | Current state |
-| --- | --- |
-| API | ASP.NET Core minimal API under `/api/v1` with OpenAPI in development, ProblemDetails, correlation-aware request logging, and health checks. |
-| Query surface | GraphQL endpoint on `/graphql` using Hot Chocolate with consumer-oriented room, reservation, availability, and occupancy read models plus explicit paging, sorting, filtering, and cost guardrails. |
-| Persistence | EF Core persistence on SQL Server / Azure SQL, with seeded rooms, startup migrations in development, and database-backed readiness checks. |
-| Async integration | Durable SQL outbox, background dispatcher, local fake reporting consumer, Service Bus-ready publisher configuration, and Azure Functions isolated-worker consumer runtime. |
-| Azure Functions consumer | `BookFast.Reporting.Functions` — isolated-worker Azure Function that consumes `reservation.created.v1` from Service Bus, upserts `ReportingReservationSyncs`, and persists idempotency state and dead-letter records. |
-| Shared integration contracts | `BookFast.Integration.Contracts` — shared project with typed event records and serialization helpers used by both the API and the Functions consumer. |
-| Frontend | React/Vite shell for local demos, repository orientation, and future integration consumer flows. |
-| Delivery | GitHub Actions CI remains active today. Azure DevOps pipeline scaffolding lives under `pipelines/azure-devops/`. |
-| Infrastructure | Initial Bicep conventions and environment parameter scaffolding live under `infra/bicep/`. |
+- Practice end-to-end cloud integration design on a realistic but manageable domain
+- Show how synchronous APIs, event-driven messaging, serverless processing, and operational concerns fit together
+- Keep the scope small enough to understand quickly, while still demonstrating meaningful architectural decisions
 
-## Target platform
+BookFast is intentionally a living learning project. Some layers are already implemented and runnable today, while other Azure platform concerns continue to evolve through the repository structure, workflows, and architecture docs.
 
-BookFast is being shaped toward the following target flow:
+## Architecture at a glance
 
 ```text
-Partner or internal consumer -> Azure API Management -> BookFast REST/GraphQL API -> Azure SQL
-Partner or internal consumer -> Azure API Management -> Service Bus -> Azure Functions -> Downstream consumers
-All runtime components -> Application Insights + Log Analytics + Azure Monitor
-Provisioning -> Bicep
-Delivery -> Azure DevOps YAML pipelines
+Browser / local shell
+        |
+        v
+React frontend
+        |
+        v
+BookFast API (.NET 10 minimal API)
+  |- REST contract under /api/v1
+  |- GraphQL read surface under /graphql
+  |- ProblemDetails, correlation, request logging, health checks
+  |- EF Core persistence to SQL Server / Azure SQL
+  |- Durable outbox for integration events
+        |
+        +--> Local in-memory transport (development default)
+        |
+        \--> Azure Service Bus
+                |
+                v
+        BookFast.Reporting.Functions
+          |- Azure Functions isolated worker
+          |- Service Bus trigger
+          |- Idempotent projection updates
+          |- Dead-letter recording for failed processing
 ```
 
-The detailed roadmap lives in the architecture docs and ADRs under `docs/`.
+## What the project demonstrates today
+
+| Area | What BookFast currently shows |
+| --- | --- |
+| API runtime | ASP.NET Core minimal API with versioned REST under `/api/v1`, OpenAPI in development, stable error contracts via ProblemDetails, and health endpoints |
+| Query layer | GraphQL on `/graphql` using Hot Chocolate with filtering, sorting, paging, and execution-cost guardrails for read-oriented consumer scenarios |
+| Data and consistency | EF Core persistence on SQL Server / Azure SQL, plus a durable outbox pattern to keep business writes and integration messages aligned |
+| Async integration | Shared event contracts, publisher abstractions, local fake consumers, and a Service Bus-ready transport boundary |
+| Serverless processing | An Azure Functions isolated-worker consumer that processes reservation events, updates reporting projections, and records idempotency/dead-letter state |
+| Diagnostics and governance | Correlation-aware request logging, health checks, architecture docs, ADRs, and API governance guidance |
+| Delivery and platform automation | GitHub Actions workflows for validation and deployment, plus Infrastructure as Code through Terraform scaffolding for Azure rollout |
+
+## Current technical direction
+
+The repository already contains the core runtime pieces for API, data, and asynchronous processing. Around that runtime, the project is being shaped toward a broader Azure platform model with:
+
+- Azure API Management as the front door for internal and external consumers
+- Azure Service Bus as the distribution boundary for asynchronous integration
+- Azure Functions for isolated downstream processing
+- Application Insights, Log Analytics, and Azure Monitor for operational visibility
+- Infrastructure as code through Terraform, combined with repeatable delivery workflows for consistent rollout
+
+That makes BookFast useful both as a runnable application and as a compact architecture case study.
 
 ## Repository guide
 
 | Path | Purpose |
 | --- | --- |
-| `src/api/BookFast.API` | Current API runtime with REST, GraphQL, diagnostics, and health endpoints |
-| `src/shared/BookFast.Integration.Contracts` | Shared integration event contracts and serialization helpers |
-| `src/functions/BookFast.Reporting.Functions` | Azure Functions isolated-worker consumer runtime (phase 4) |
-| `src/functions/BookFast.Reporting.Functions.Tests` | Unit tests for the Functions message processor |
-| `src/frontend` | Current frontend shell and local developer-facing UI |
-| `docs/architecture` | Architecture overview and bounded context documentation |
-| `docs/decisions` | Architecture decision records (ADRs) |
-| `infra/bicep` | Bicep naming, parameter, and module scaffolding for Azure rollout |
-| `pipelines/azure-devops` | Azure DevOps YAML pipeline scaffolding |
+| `src\api\BookFast.API` | Main API runtime with REST, GraphQL, health, diagnostics, and event publication |
+| `src\shared\BookFast.Integration.Contracts` | Shared integration event contracts and serialization helpers |
+| `src\functions\BookFast.Reporting.Functions` | Azure Functions isolated-worker consumer for reservation events |
+| `src\functions\BookFast.Reporting.Functions.Tests` | Tests for the Functions message-processing path |
+| `src\frontend` | Lightweight React shell for local demos and repository orientation |
+| `docs\architecture` | Architecture overview, bounded contexts, and event-driven flow documentation |
+| `docs\api` | API governance and GraphQL guidance |
+| `docs\decisions` | Architecture decision records (ADRs) |
+| `infra\terraform` | Current Terraform scaffold for Azure infrastructure rollout |
+| `.github\workflows` | CI and deployment workflows |
 
 ## Local development
 
@@ -50,8 +83,9 @@ The detailed roadmap lives in the architecture docs and ADRs under `docs/`.
 
 - .NET 10 SDK
 - Node.js 22+
-- Docker Desktop (optional, for the compose flow)
-- SQL Server LocalDB or an alternative SQL Server / Azure SQL connection string for direct `dotnet run`
+- Docker Desktop
+- Azure Functions Core Tools (only needed when running the Functions app locally)
+- SQL Server LocalDB or another SQL Server / Azure SQL connection string
 
 ### Run the API
 
@@ -62,55 +96,11 @@ dotnet run
 
 The development profile targets SQL Server LocalDB by default. Override `ConnectionStrings__BookFastDatabase` when you want to use another SQL Server or Azure SQL instance.
 
-Local development uses the in-memory event transport by default. Switch to Azure Service Bus by setting:
-
-```powershell
-$env:Eventing__Mode = "ServiceBus"
-$env:ConnectionStrings__BookFastServiceBus = "<service-bus-connection-string>"
-```
-
-The API is available at `http://localhost:5096` by default, with:
+The API is available at `http://localhost:5096` by default:
 
 - REST: `http://localhost:5096/api/v1`
 - GraphQL: `http://localhost:5096/graphql`
 - Health: `http://localhost:5096/health`
-
-### Run the Functions consumer
-
-The `BookFast.Reporting.Functions` project requires:
-- Azure Service Bus with a topic named `bookfast.integration` and a subscription named `reporting`
-- Access to the same SQL Server / Azure SQL database as the API
-
-Copy the config template and fill in the blanks:
-
-```powershell
-Copy-Item src\functions\BookFast.Reporting.Functions\local.settings.json.template `
-          src\functions\BookFast.Reporting.Functions\local.settings.json
-```
-
-Edit `local.settings.json` and set:
-
-```json
-{
-  "Values": {
-    "BookFastServiceBus": "<your-service-bus-connection-string>",
-    "ServiceBus__TopicName": "bookfast.integration",
-    "ServiceBus__SubscriptionName": "reporting"
-  },
-  "ConnectionStrings": {
-    "BookFastDatabase": "<your-sql-database-connection-string>"
-  }
-}
-```
-
-Then start the Function:
-
-```powershell
-Set-Location src\functions\BookFast.Reporting.Functions
-func start
-```
-
-> Azure Functions Core Tools must be installed. The `local.settings.json` file is excluded from source control.
 
 ### Run the frontend
 
@@ -122,7 +112,22 @@ npm run dev
 
 The frontend shell is available at `http://localhost:5173`.
 
-> Local CORS is configured for `http://localhost:3000` and `http://localhost:5173`. The frontend remains intentionally lightweight and repository-focused at this stage.
+### Run the Functions consumer
+
+This is optional for local end-to-end testing of the asynchronous path.
+
+```powershell
+Set-Location src\functions\BookFast.Reporting.Functions
+func start
+```
+
+The Functions app expects:
+
+- an Azure Service Bus topic named `bookfast.integration`
+- a subscription named `reporting`
+- access to the same SQL Server / Azure SQL database as the API
+
+Use `local.settings.json.template` in that folder as the starting point for local configuration.
 
 ### Run the local container flow
 
@@ -130,72 +135,26 @@ The frontend shell is available at `http://localhost:5173`.
 docker compose up --build
 ```
 
-This starts:
+This starts SQL Server, the API, and the frontend for a full local shell.
 
-- SQL Server on `localhost:1433`
-- API on `http://localhost:5000`
-- Frontend on `http://localhost:3000`
+## Delivery and infrastructure
 
-The compose flow wires the API to the SQL Server container and applies pending EF Core migrations during startup.
+- `.github/workflows/ci.yml` validates the frontend, API, and Functions projects
+- `.github/workflows/app-deploy.yml` builds and deploys the application components
+- `.github/workflows/infra-deploy.yml` validates and plans infrastructure changes
+- `infra/terraform` holds the current Azure infrastructure scaffold
+
+Infrastructure as Code is part of the project through Terraform. The current scaffold captures the Azure rollout direction and keeps environment setup repeatable as the platform evolves.
+
+Detailed environment setup and rollout guidance lives in the workflow files and the documentation under `docs/`.
 
 ## Documentation
 
-- Architecture overview: `docs/architecture/overview.md`
-- Event-driven integration flow: `docs/architecture/event-driven-integration.md`
-- Bounded contexts: `docs/architecture/bounded-contexts.md`
-- API governance: `docs/api/governance.md`
-- GraphQL consumer guide: `docs/api/graphql.md`
-- ADR index: `docs/decisions/`
-
-## Azure DevOps pipelines
-
-- `pipelines/azure-devops/ci.yml` validates the frontend, API, and Azure Functions projects and publishes application artifacts.
-- `pipelines/azure-devops/app-deploy.yml` builds, tests, packages, and deploys the API plus `BookFast.Reporting.Functions` to existing Azure resources.
-- `pipelines/azure-devops/infra-deploy.yml` remains the infrastructure what-if pipeline for the Bicep scaffold.
-
-The recommended enterprise setup for the app deployment pipeline is:
-
-- an ARM / workload identity Azure service connection
-- an Azure DevOps **Library variable group** linked to **Azure Key Vault**
-- an existing Web App for the API and an existing Function App for `BookFast.Reporting.Functions`
-
-Create these Key Vault secrets and map them into the variable group with the same names:
-
-- `apiSqlConnectionString`
-- `apiServiceBusConnectionString`
-- `functionSqlConnectionString`
-- `functionServiceBusConnectionString`
-
-Then run `pipelines/azure-devops/app-deploy.yml` with the `keyVaultVariableGroup` parameter set to that Library group name.
-
-Recommended Azure DevOps setup:
-
-1. Create an Azure Key Vault in the target environment.
-2. Store the four runtime secrets above as Key Vault secrets.
-3. In Azure DevOps, go to **Pipelines > Library**, create a variable group, and enable **Link secrets from an Azure key vault as variables**.
-4. Authorize the Azure service connection against the vault and grant the pipeline permission to use the variable group.
-5. Add approvals/checks on the variable group if you want stronger production release controls.
-
-If `keyVaultVariableGroup` is left empty, the pipeline can still fall back to direct secret pipeline variables with the same four names, and if those are also omitted it leaves existing Azure app settings untouched.
-
-## Git hooks
-
-Activate the repository hooks once after cloning:
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File .\scripts\setup-git-hooks.ps1
-```
-
-The pre-commit hook runs the same `.NET format` check as CI for `src/api/BookFast.API/BookFast.API.csproj`.
-
-To fix formatting locally:
-
-```powershell
-Push-Location src\api
-dotnet tool restore
-dotnet tool run dotnet-format -- BookFast.API\BookFast.API.csproj
-Pop-Location
-```
+- Architecture overview: `docs\architecture\overview.md`
+- Event-driven integration flow: `docs\architecture\event-driven-integration.md`
+- API governance: `docs\api\governance.md`
+- GraphQL guide: `docs\api\graphql.md`
+- ADRs: `docs\decisions\`
 
 ## Source control conventions
 
@@ -203,4 +162,4 @@ Pop-Location
 - `develop`: integration branch
 - `feature/<name>`: feature work branched from `develop`
 
-Use Conventional Commits for local history and PRs.
+Use Conventional Commits for local history and pull requests.

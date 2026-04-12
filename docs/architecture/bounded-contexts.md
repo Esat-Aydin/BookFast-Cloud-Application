@@ -9,7 +9,7 @@ BookFast is split into four bounded contexts so that the platform can grow towar
 | Reservation API | Handles write-oriented reservation flows in the API | Move into dedicated application and infrastructure layers with persistent storage and domain events | REST `/api/v1/reservations` |
 | Query API | Exposes read-oriented room and reservation queries | Expand into richer consumer read models and GraphQL governance | REST `/api/v1/rooms`, GraphQL `/graphql` |
 | Async integration layer | Publishes durable integration events, keeps a local fake consumer for InMemory mode, and runs a real Azure Functions reporting consumer for Service Bus mode | Expand additional consumers and operational automation around the async tier | Integration events, queues, topics, webhooks |
-| Platform and operations | Diagnostics and health run inside the API today | Add APIM, Entra ID, Key Vault, Application Insights, Log Analytics, alerts, and Azure DevOps delivery | APIM, telemetry, pipelines, Bicep |
+| Platform and operations | Diagnostics and health run inside the API today | Add APIM, Entra ID, Key Vault, Application Insights, Log Analytics, alerts, and GitHub Actions delivery | APIM, telemetry, workflows, Terraform |
 
 ## Reservation API
 
@@ -87,4 +87,4 @@ Owns cross-cutting platform concerns that should not be embedded in business end
 - Azure API Management for consumer exposure and governance
 - Entra ID, Managed Identity, and Key Vault for identity and secrets
 - Application Insights, Log Analytics, alerts, dashboards, and runbooks for operations
-- Bicep and Azure DevOps YAML for reproducible delivery
+- Terraform and GitHub Actions for reproducible delivery

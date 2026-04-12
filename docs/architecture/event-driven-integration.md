@@ -86,11 +86,10 @@ Start the API without any extra configuration. The local fake reporting consumer
 
 ## What remains for later phases
 
-- Azure Functions deployment: Bicep module for Function App, App Service Plan, and Service Bus subscription
+- Terraform rollout for the Function App, hosting plan, and Service Bus topology
 - APIM front-ending the API
 - Additional event types consumed by Functions (e.g. `room.availability.changed.v1`)
 - Application Insights telemetry wired into the Functions runtime
-- Azure DevOps pipeline deploying the Functions app
 
 ## Why the outbox matters here
 
