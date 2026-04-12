@@ -13,6 +13,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\shared\BookFast.Integration.Contracts\BookFast.Integration.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.18.2" />
     <PackageReference Include="HotChocolate.AspNetCore" Version="15.1.13" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.4" />

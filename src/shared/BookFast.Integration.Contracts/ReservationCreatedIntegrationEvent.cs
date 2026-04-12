@@ -2,18 +2,21 @@
 //  © 2026 Ernst & Young Accountants LLP - www.ey.com
 //
 //  Author          : EY - Climate Change and Sustainability Services
-//  File:           : RoomAvailabilityChangedIntegrationEvent.cs
-//  Project         : BookFast.API
+//  File:           : ReservationCreatedIntegrationEvent.cs
+//  Project         : BookFast.Integration.Contracts
 // ******************************************************************************
 
-namespace BookFast.API.Contracts.Integration;
+namespace BookFast.Integration.Contracts;
 
-public sealed record RoomAvailabilityChangedIntegrationEvent(
+public sealed record ReservationCreatedIntegrationEvent(
     Guid EventId,
     DateTimeOffset OccurredUtc,
-    Guid RoomId,
     Guid ReservationId,
-    DateTimeOffset EffectiveFromUtc,
-    DateTimeOffset EffectiveToUtc,
-    string Reason,
+    Guid RoomId,
+    string ReservedBy,
+    string? Purpose,
+    DateTimeOffset StartUtc,
+    DateTimeOffset EndUtc,
+    DateTimeOffset CreatedUtc,
+    string Status,
     string? CorrelationId);

@@ -1,0 +1,327 @@
+# Configure a workload identity-based Azure service connection before running this pipeline.
+# Recommended enterprise setup: import a Library variable group linked to Azure Key Vault.
+# Expected secret names in the variable group / Key Vault:
+# - apiSqlConnectionString
+# - apiServiceBusConnectionString
+# - functionSqlConnectionString
+# - functionServiceBusConnectionString
+# Existing values already configured in Azure App Service / Function App remain untouched when these variables are empty.
+trigger: none
+pr: none
+
+parameters:
+  - name: azureServiceConnection
+    type: string
+    default: 'bookfast-dev-service-connection'
+  - name: keyVaultVariableGroup
+    type: string
+    default: ''
+  - name: environmentName
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - test
+      - prod
+  - name: resourceGroupName
+    type: string
+    default: 'rg-bookfast-dev'
+  - name: apiAppName
+    type: string
+    default: 'bookfast-dev-api'
+  - name: functionAppName
+    type: string
+    default: 'bookfast-dev-func'
+  - name: serviceBusTopicName
+    type: string
+    default: 'bookfast.integration'
+  - name: serviceBusSubscriptionName
+    type: string
+    default: 'reporting'
+  - name: apiHealthCheckUrl
+    type: string
+    default: ''
+  - name: deployApi
+    type: boolean
+    default: true
+  - name: deployFunctions
+    type: boolean
+    default: true
+
+variables:
+  - ${{ if ne(parameters.keyVaultVariableGroup, '') }}:
+    - group: ${{ parameters.keyVaultVariableGroup }}
+  - name: vmImage
+    value: 'ubuntu-latest'
+  - name: dotnetVersion
+    value: '10.0.x'
+  - name: buildConfiguration
+    value: 'Release'
+  - name: apiWorkingDirectory
+    value: 'src/api'
+  - name: apiProject
+    value: 'src/api/BookFast.API/BookFast.API.csproj'
+  - name: apiTestProject
+    value: 'src/api/BookFast.API.Tests/BookFast.API.Tests.csproj'
+  - name: functionsProject
+    value: 'src/functions/BookFast.Reporting.Functions/BookFast.Reporting.Functions.csproj'
+  - name: functionsTestProject
+    value: 'src/functions/BookFast.Reporting.Functions.Tests/BookFast.Reporting.Functions.Tests.csproj'
+
+stages:
+  - stage: BuildAndPackage
+    displayName: Build and package BookFast applications
+    jobs:
+      - ${{ if eq(parameters.deployApi, true) }}:
+        - job: PackageApi
+          displayName: Package API
+          pool:
+            vmImage: $(vmImage)
+          steps:
+            - checkout: self
+
+            - task: UseDotNet@2
+              displayName: Use .NET SDK
+              inputs:
+                packageType: 'sdk'
+                version: $(dotnetVersion)
+
+            - script: dotnet tool restore
+              displayName: Restore local .NET tools
+              workingDirectory: $(apiWorkingDirectory)
+
+            - task: DotNetCoreCLI@2
+              displayName: Restore API dependencies
+              inputs:
+                command: restore
+                projects: $(apiTestProject)
+
+            - script: dotnet tool run dotnet-format -- BookFast.API/BookFast.API.csproj --check
+              displayName: Check API formatting
+              workingDirectory: $(apiWorkingDirectory)
+
+            - task: DotNetCoreCLI@2
+              displayName: Build API tests
+              inputs:
+                command: build
+                projects: $(apiTestProject)
+                arguments: '--configuration $(buildConfiguration) --no-restore'
+
+            - task: DotNetCoreCLI@2
+              displayName: Test API
+              inputs:
+                command: test
+                projects: $(apiTestProject)
+                arguments: '--configuration $(buildConfiguration) --logger "trx;LogFileName=api-test-results.trx" --no-build --no-restore'
+                publishTestResults: true
+
+            - task: DotNetCoreCLI@2
+              displayName: Publish API
+              inputs:
+                command: publish
+                publishWebProjects: false
+                projects: $(apiProject)
+                arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/api --no-restore'
+                zipAfterPublish: false
+
+            - task: ArchiveFiles@2
+              displayName: Archive API package
+              inputs:
+                rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/api'
+                includeRootFolder: false
+                archiveType: 'zip'
+                archiveFile: '$(Build.ArtifactStagingDirectory)/api.zip'
+                replaceExistingArchive: true
+
+            - task: PublishPipelineArtifact@1
+              displayName: Publish API package artifact
+              inputs:
+                targetPath: '$(Build.ArtifactStagingDirectory)/api.zip'
+                artifact: 'api-package'
+                publishLocation: 'pipeline'
+
+      - ${{ if eq(parameters.deployFunctions, true) }}:
+        - job: PackageFunctions
+          displayName: Package Functions
+          pool:
+            vmImage: $(vmImage)
+          steps:
+            - checkout: self
+
+            - task: UseDotNet@2
+              displayName: Use .NET SDK
+              inputs:
+                packageType: 'sdk'
+                version: $(dotnetVersion)
+
+            - script: dotnet tool restore
+              displayName: Restore local .NET tools
+              workingDirectory: $(apiWorkingDirectory)
+
+            - task: DotNetCoreCLI@2
+              displayName: Restore Functions dependencies
+              inputs:
+                command: restore
+                projects: $(functionsTestProject)
+
+            - script: dotnet tool run dotnet-format -- ../functions/BookFast.Reporting.Functions/BookFast.Reporting.Functions.csproj --check
+              displayName: Check Functions formatting
+              workingDirectory: $(apiWorkingDirectory)
+
+            - script: dotnet tool run dotnet-format -- ../functions/BookFast.Reporting.Functions.Tests/BookFast.Reporting.Functions.Tests.csproj --check
+              displayName: Check Functions test formatting
+              workingDirectory: $(apiWorkingDirectory)
+
+            - task: DotNetCoreCLI@2
+              displayName: Build Functions tests
+              inputs:
+                command: build
+                projects: $(functionsTestProject)
+                arguments: '--configuration $(buildConfiguration) --no-restore'
+
+            - task: DotNetCoreCLI@2
+              displayName: Test Functions
+              inputs:
+                command: test
+                projects: $(functionsTestProject)
+                arguments: '--configuration $(buildConfiguration) --logger "trx;LogFileName=functions-test-results.trx" --no-build --no-restore'
+                publishTestResults: true
+
+            - task: DotNetCoreCLI@2
+              displayName: Publish Functions
+              inputs:
+                command: publish
+                publishWebProjects: false
+                projects: $(functionsProject)
+                arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/functions --no-restore'
+                zipAfterPublish: false
+
+            - task: ArchiveFiles@2
+              displayName: Archive Functions package
+              inputs:
+                rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/functions'
+                includeRootFolder: false
+                archiveType: 'zip'
+                archiveFile: '$(Build.ArtifactStagingDirectory)/functions.zip'
+                replaceExistingArchive: true
+
+            - task: PublishPipelineArtifact@1
+              displayName: Publish Functions package artifact
+              inputs:
+                targetPath: '$(Build.ArtifactStagingDirectory)/functions.zip'
+                artifact: 'functions-package'
+                publishLocation: 'pipeline'
+
+  - stage: DeployApplications
+    displayName: Deploy BookFast applications
+    dependsOn: BuildAndPackage
+    jobs:
+      - ${{ if eq(parameters.deployApi, true) }}:
+        - job: DeployApi
+          displayName: Deploy API to Azure
+          pool:
+            vmImage: $(vmImage)
+          steps:
+            - download: current
+              artifact: api-package
+
+            - task: AzureCLI@2
+              displayName: Configure API app settings
+              inputs:
+                azureSubscription: ${{ parameters.azureServiceConnection }}
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+                  settings=(
+                    "Eventing__Mode=ServiceBus"
+                    "Eventing__ServiceBusTopicName=${{ parameters.serviceBusTopicName }}"
+                  )
+
+                  if [ -n "$API_SQL_CONNECTION_STRING" ]; then
+                    settings+=("ConnectionStrings__BookFastDatabase=$API_SQL_CONNECTION_STRING")
+                  fi
+
+                  if [ -n "$API_SERVICE_BUS_CONNECTION_STRING" ]; then
+                    settings+=("ConnectionStrings__BookFastServiceBus=$API_SERVICE_BUS_CONNECTION_STRING")
+                  fi
+
+                  az webapp config appsettings set \
+                    --resource-group ${{ parameters.resourceGroupName }} \
+                    --name ${{ parameters.apiAppName }} \
+                    --settings "${settings[@]}" \
+                    --output none
+              env:
+                API_SQL_CONNECTION_STRING: $(apiSqlConnectionString)
+                API_SERVICE_BUS_CONNECTION_STRING: $(apiServiceBusConnectionString)
+
+            - task: AzureCLI@2
+              displayName: Deploy API package
+              inputs:
+                azureSubscription: ${{ parameters.azureServiceConnection }}
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+                  az webapp deploy \
+                    --resource-group ${{ parameters.resourceGroupName }} \
+                    --name ${{ parameters.apiAppName }} \
+                    --src-path "$(Pipeline.Workspace)/api-package/api.zip" \
+                    --type zip \
+                    --clean true \
+                    --output none
+
+            - ${{ if ne(parameters.apiHealthCheckUrl, '') }}:
+              - script: |
+                  curl --fail --silent --show-error "${{ parameters.apiHealthCheckUrl }}"
+                displayName: Smoke test API health endpoint
+
+      - ${{ if eq(parameters.deployFunctions, true) }}:
+        - job: DeployFunctions
+          displayName: Deploy Functions to Azure
+          pool:
+            vmImage: $(vmImage)
+          steps:
+            - download: current
+              artifact: functions-package
+
+            - task: AzureCLI@2
+              displayName: Configure Function App settings
+              inputs:
+                azureSubscription: ${{ parameters.azureServiceConnection }}
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+                  settings=(
+                    "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated"
+                    "ServiceBus__TopicName=${{ parameters.serviceBusTopicName }}"
+                    "ServiceBus__SubscriptionName=${{ parameters.serviceBusSubscriptionName }}"
+                  )
+
+                  if [ -n "$FUNCTION_SQL_CONNECTION_STRING" ]; then
+                    settings+=("ConnectionStrings__BookFastDatabase=$FUNCTION_SQL_CONNECTION_STRING")
+                  fi
+
+                  if [ -n "$FUNCTION_SERVICE_BUS_CONNECTION_STRING" ]; then
+                    settings+=("BookFastServiceBus=$FUNCTION_SERVICE_BUS_CONNECTION_STRING")
+                  fi
+
+                  az functionapp config appsettings set \
+                    --resource-group ${{ parameters.resourceGroupName }} \
+                    --name ${{ parameters.functionAppName }} \
+                    --settings "${settings[@]}" \
+                    --output none
+              env:
+                FUNCTION_SQL_CONNECTION_STRING: $(functionSqlConnectionString)
+                FUNCTION_SERVICE_BUS_CONNECTION_STRING: $(functionServiceBusConnectionString)
+
+            - task: AzureCLI@2
+              displayName: Deploy Functions package
+              inputs:
+                azureSubscription: ${{ parameters.azureServiceConnection }}
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+                  az functionapp deployment source config-zip \
+                    --resource-group ${{ parameters.resourceGroupName }} \
+                    --name ${{ parameters.functionAppName }} \
+                    --src "$(Pipeline.Workspace)/functions-package/functions.zip" \
+                    --output none

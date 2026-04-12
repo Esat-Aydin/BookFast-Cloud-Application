@@ -11,6 +11,8 @@ using BookFast.API.Infrastructure.Eventing;
 using BookFast.API.Infrastructure.Persistence;
 using BookFast.API.Services;
 
+using BookFast.Integration.Contracts;
+
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 

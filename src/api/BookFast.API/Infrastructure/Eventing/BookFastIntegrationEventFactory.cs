@@ -6,8 +6,9 @@
 //  Project         : BookFast.API
 // ******************************************************************************
 
-using BookFast.API.Contracts.Integration;
 using BookFast.API.Domain;
+
+using BookFast.Integration.Contracts;
 
 namespace BookFast.API.Infrastructure.Eventing;
 

@@ -8,7 +8,7 @@ BookFast is split into four bounded contexts so that the platform can grow towar
 | --- | --- | --- | --- |
 | Reservation API | Handles write-oriented reservation flows in the API | Move into dedicated application and infrastructure layers with persistent storage and domain events | REST `/api/v1/reservations` |
 | Query API | Exposes read-oriented room and reservation queries | Expand into richer consumer read models and GraphQL governance | REST `/api/v1/rooms`, GraphQL `/graphql` |
-| Async integration layer | Publishes durable integration events and maintains a fake downstream consumer for local flow validation | Move from local transport to Azure Service Bus plus Azure Functions consumers | Integration events, queues, topics, webhooks |
+| Async integration layer | Publishes durable integration events, keeps a local fake consumer for InMemory mode, and runs a real Azure Functions reporting consumer for Service Bus mode | Expand additional consumers and operational automation around the async tier | Integration events, queues, topics, webhooks |
 | Platform and operations | Diagnostics and health run inside the API today | Add APIM, Entra ID, Key Vault, Application Insights, Log Analytics, alerts, and Azure DevOps delivery | APIM, telemetry, pipelines, Bicep |
 
 ## Reservation API
@@ -60,12 +60,13 @@ Owns asynchronous distribution of business events and background integration wor
 - Durable outbox persisted in the BookFast SQL database
 - Background outbox dispatcher inside the API runtime
 - In-memory local publisher with fake reporting consumer for downstream flow validation
-- Azure Service Bus publisher ready through configuration
+- Azure Service Bus publisher in the API runtime plus `BookFast.Reporting.Functions` as the reporting consumer runtime
+- Shared integration contracts used by both producer and Azure Functions consumer
 
 ### Planned boundary
 
-- Reservation and availability events published to Azure Service Bus
-- Azure Functions consume and process downstream integration work
+- Additional event types consumed beyond `reservation.created.v1`
+- More than one Azure Functions consumer per downstream capability when the platform grows
 - Retry, dead-letter, poison-message handling, and idempotency become first-class concerns
 
 ## Platform and operations

@@ -6,8 +6,9 @@
 //  Project         : BookFast.API
 // ******************************************************************************
 
-using BookFast.API.Contracts.Integration;
 using BookFast.API.Infrastructure.Persistence;
+
+using BookFast.Integration.Contracts;
 
 using Microsoft.EntityFrameworkCore;
 

@@ -1,0 +1,17 @@
+{
+  "version": "2.0",
+  "extensions": {
+    "serviceBus": {
+      "autoCompleteMessages": false
+    }
+  },
+  "logging": {
+    "logLevel": {
+      "default": "Information",
+      "Microsoft": "Warning",
+      "Host.Results": "Error",
+      "Function": "Information",
+      "Host.Aggregator": "Trace"
+    }
+  }
+}

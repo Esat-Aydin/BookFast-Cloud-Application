@@ -3,12 +3,12 @@
 //
 //  Author          : EY - Climate Change and Sustainability Services
 //  File:           : IntegrationEventJsonSerializer.cs
-//  Project         : BookFast.API
+//  Project         : BookFast.Integration.Contracts
 // ******************************************************************************
 
 using System.Text.Json;
 
-namespace BookFast.API.Infrastructure.Eventing;
+namespace BookFast.Integration.Contracts;
 
 public static class IntegrationEventJsonSerializer
 {
