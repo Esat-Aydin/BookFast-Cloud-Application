@@ -44,9 +44,10 @@ SQL Server / Azure SQL persistence via EF Core (business data + outbox + local r
 | `src/shared/BookFast.Integration.Contracts` | Typed integration event records and serialization helpers | Shared between API and Functions consumer |
 | `src/functions/BookFast.Reporting.Functions` | Azure Functions isolated-worker consumer for `reservation.created.v1` | Upserts reporting projection, records idempotency and dead-letters |
 | `src/frontend` | Provides a local platform shell for demos and repository orientation | Not yet a full reservation experience |
-| `.github/workflows/ci.yml` | Active validation pipeline | GitHub Actions remains the active CI path today |
-| `infra/bicep` | Azure IaC scaffold | Establishes naming, parameter, and module conventions |
-| `pipelines/azure-devops` | Azure DevOps YAML scaffold | Prepared for the future delivery target |
+| `.github/workflows/ci.yml` | Active validation pipeline | Validates frontend, API, and Functions on GitHub Actions |
+| `.github/workflows/app-deploy.yml` | Manual application CD workflow | Builds, packages, and deploys the API and Functions through GitHub OIDC plus Azure Key Vault |
+| `.github/workflows/infra-deploy.yml` | Manual infrastructure workflow | Runs Terraform format, validate, plan, and optional apply |
+| `infra/terraform` | Azure IaC scaffold | Establishes naming, variables, and module conventions for Terraform |
 
 ## Target Azure platform
 
@@ -68,8 +69,8 @@ BookFast API + Azure Functions + APIM + Service Bus
         v
 Application Insights + Log Analytics + Azure Monitor
 
-Provisioning: Bicep
-Delivery: Azure DevOps YAML pipelines
+Provisioning: Terraform
+Delivery: GitHub Actions workflows
 ```
 
 ## Architectural boundaries
@@ -87,7 +88,7 @@ See `docs/architecture/bounded-contexts.md` for the detailed ownership model.
 
 The repository now distinguishes between:
 
-- **Current runtime truth** - the running code and GitHub Actions validation that exist today.
-- **Target platform scaffolding** - the `infra/` and `pipelines/` folders that prepare the move to Bicep and Azure DevOps.
+- **Current runtime truth** - the running code and GitHub Actions workflows that exist today.
+- **Target platform scaffolding** - the `infra/terraform` folder and deployment workflows that prepare the move to fully reproducible Terraform-based Azure delivery.
 
 This split is intentional. It keeps the repo honest about what is implemented today, while still creating the enterprise structure needed for the next phases.

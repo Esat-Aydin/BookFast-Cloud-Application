@@ -56,6 +56,13 @@ scripts/run-local-ci.ps1
 # Azure Functions local config (contains connection strings)
 local.settings.json
 
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
 # IntelliJ / Rider
 encodings.xml
 indexLayout.xml
