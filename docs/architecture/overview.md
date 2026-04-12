@@ -6,7 +6,7 @@ This document aligns the repository with the current runtime and the intended Az
 
 ## Current runtime shape
 
-BookFast currently runs as a modular monolith with one API runtime and one lightweight frontend shell.
+BookFast currently runs as a modular monolith with one API runtime, one Azure Functions consumer, and one lightweight frontend shell.
 
 ```text
 Browser / developer shell
@@ -22,19 +22,27 @@ BookFast API (.NET 10 minimal API)
   |- ProblemDetails, correlation middleware, request logging
   |- Durable outbox dispatcher for integration events
         |
-        +--> Local in-memory integration transport --> fake reporting consumer
+        +--> Local in-memory integration transport --> local fake reporting consumer (development default)
         |
-        \--> Azure Service Bus transport when configured
+        \--> Azure Service Bus topic 'bookfast.integration'
+                |
+                v
+        BookFast.Reporting.Functions (Azure Functions isolated worker)
+          |- Service Bus trigger on subscription 'reporting'
+          |- Upserts ReportingReservationSyncs
+          |- Idempotency via IntegrationConsumerStates
+          |- Dead-letter recording via IntegrationConsumerDeadLetters
         |
         v
 SQL Server / Azure SQL persistence via EF Core (business data + outbox + local reporting sync)
-```
 
 ## Current responsibilities
 
 | Component | Current responsibility | Notes |
 | --- | --- | --- |
 | `src/api/BookFast.API` | Exposes room and reservation APIs, GraphQL reads, diagnostics, and health checks | Persistence runs through EF Core on SQL Server / Azure SQL and GraphQL now includes consumer-driven availability and occupancy overviews |
+| `src/shared/BookFast.Integration.Contracts` | Typed integration event records and serialization helpers | Shared between API and Functions consumer |
+| `src/functions/BookFast.Reporting.Functions` | Azure Functions isolated-worker consumer for `reservation.created.v1` | Upserts reporting projection, records idempotency and dead-letters |
 | `src/frontend` | Provides a local platform shell for demos and repository orientation | Not yet a full reservation experience |
 | `.github/workflows/ci.yml` | Active validation pipeline | GitHub Actions remains the active CI path today |
 | `infra/bicep` | Azure IaC scaffold | Establishes naming, parameter, and module conventions |

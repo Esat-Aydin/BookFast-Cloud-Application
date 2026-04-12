@@ -53,6 +53,9 @@ scripts/run-local-ci.ps1
 **/TestResults/
 *.trx
 
+# Azure Functions local config (contains connection strings)
+local.settings.json
+
 # IntelliJ / Rider
 encodings.xml
 indexLayout.xml

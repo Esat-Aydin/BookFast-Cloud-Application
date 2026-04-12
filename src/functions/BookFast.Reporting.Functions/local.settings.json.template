@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "ServiceBus__TopicName": "bookfast.integration",
+    "ServiceBus__SubscriptionName": "reporting",
+    "BookFastServiceBus": "<your-service-bus-connection-string>"
+  },
+  "ConnectionStrings": {
+    "BookFastDatabase": "<your-sql-database-connection-string>"
+  }
+}

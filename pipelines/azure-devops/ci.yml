@@ -18,6 +18,8 @@ variables:
   apiWorkingDirectory: 'src/api'
   apiProject: 'src/api/BookFast.API/BookFast.API.csproj'
   apiTestProject: 'src/api/BookFast.API.Tests/BookFast.API.Tests.csproj'
+  functionsProject: 'src/functions/BookFast.Reporting.Functions/BookFast.Reporting.Functions.csproj'
+  functionsTestProject: 'src/functions/BookFast.Reporting.Functions.Tests/BookFast.Reporting.Functions.Tests.csproj'
 
 stages:
   - stage: Validate
@@ -80,17 +82,17 @@ stages:
             displayName: Restore API dependencies
             inputs:
               command: restore
-              projects: $(apiProject)
+              projects: $(apiTestProject)
 
           - script: dotnet tool run dotnet-format -- BookFast.API/BookFast.API.csproj --check
             displayName: Check API formatting
             workingDirectory: $(apiWorkingDirectory)
 
           - task: DotNetCoreCLI@2
-            displayName: Build API
+            displayName: Build API tests
             inputs:
               command: build
-              projects: $(apiProject)
+              projects: $(apiTestProject)
               arguments: '--configuration Release --no-restore'
 
           - task: DotNetCoreCLI@2
@@ -98,7 +100,7 @@ stages:
             inputs:
               command: test
               projects: $(apiTestProject)
-              arguments: '--configuration Release --logger "trx;LogFileName=test-results.trx" --no-build'
+              arguments: '--configuration Release --logger "trx;LogFileName=test-results.trx" --no-build --no-restore'
               publishTestResults: true
 
           - task: DotNetCoreCLI@2
@@ -107,7 +109,7 @@ stages:
               command: publish
               publishWebProjects: false
               projects: $(apiProject)
-              arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)/api'
+              arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)/api --no-restore'
               zipAfterPublish: false
 
           - task: PublishPipelineArtifact@1
@@ -116,4 +118,67 @@ stages:
             inputs:
               targetPath: '$(Build.ArtifactStagingDirectory)/api'
               artifact: 'api-drop'
+              publishLocation: 'pipeline'
+
+      - job: FunctionsValidation
+        displayName: Functions validation
+        pool:
+          vmImage: $(vmImage)
+        steps:
+          - checkout: self
+
+          - task: UseDotNet@2
+            displayName: Use .NET SDK
+            inputs:
+              packageType: 'sdk'
+              version: $(dotnetVersion)
+
+          - script: dotnet tool restore
+            displayName: Restore local .NET tools
+            workingDirectory: $(apiWorkingDirectory)
+
+          - task: DotNetCoreCLI@2
+            displayName: Restore Functions dependencies
+            inputs:
+              command: restore
+              projects: $(functionsTestProject)
+
+          - script: dotnet tool run dotnet-format -- ../functions/BookFast.Reporting.Functions/BookFast.Reporting.Functions.csproj --check
+            displayName: Check Functions formatting
+            workingDirectory: $(apiWorkingDirectory)
+
+          - script: dotnet tool run dotnet-format -- ../functions/BookFast.Reporting.Functions.Tests/BookFast.Reporting.Functions.Tests.csproj --check
+            displayName: Check Functions test formatting
+            workingDirectory: $(apiWorkingDirectory)
+
+          - task: DotNetCoreCLI@2
+            displayName: Build Functions tests
+            inputs:
+              command: build
+              projects: $(functionsTestProject)
+              arguments: '--configuration Release --no-restore'
+
+          - task: DotNetCoreCLI@2
+            displayName: Test Functions
+            inputs:
+              command: test
+              projects: $(functionsTestProject)
+              arguments: '--configuration Release --logger "trx;LogFileName=functions-test-results.trx" --no-build --no-restore'
+              publishTestResults: true
+
+          - task: DotNetCoreCLI@2
+            displayName: Publish Functions
+            inputs:
+              command: publish
+              publishWebProjects: false
+              projects: $(functionsProject)
+              arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)/functions --no-restore'
+              zipAfterPublish: false
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish Functions artifact
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/functions'
+              artifact: 'functions-drop'
               publishLocation: 'pipeline'
