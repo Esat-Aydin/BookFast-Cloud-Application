@@ -274,7 +274,6 @@ jobs:
           function_service_bus_connection_string="$(fetch_secret functionServiceBusConnectionString)"
 
           settings=(
-            "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated"
             "ServiceBus__TopicName=${{ inputs.service_bus_topic_name }}"
             "ServiceBus__SubscriptionName=${{ inputs.service_bus_subscription_name }}"
             "ConnectionStrings__BookFastDatabase=${function_sql_connection_string}"
