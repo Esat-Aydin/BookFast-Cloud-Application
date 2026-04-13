@@ -35,14 +35,14 @@ public sealed class SqliteBookFastApiFactory : WebApplicationFactory<Program>
     {
         builder.ConfigureAppConfiguration((_, configurationBuilder) =>
         {
-        configurationBuilder.AddInMemoryCollection(
-
-        [
-            new KeyValuePair<string, string?>("Persistence:ApplyMigrationsOnStartup", bool.FalseString),
-            new KeyValuePair<string, string?>("Eventing:Mode", IntegrationTransportMode.InMemory.ToString()),
-            new KeyValuePair<string, string?>("Eventing:EnableBackgroundDispatcher", bool.FalseString)
-        ]);
-    });
+            configurationBuilder.AddInMemoryCollection(
+            [
+                new KeyValuePair<string, string?>("ConnectionStrings:BookFastDatabase", "Data Source=bookfast-tests.db"),
+                new KeyValuePair<string, string?>("Persistence:ApplyMigrationsOnStartup", bool.FalseString),
+                new KeyValuePair<string, string?>("Eventing:Mode", IntegrationTransportMode.InMemory.ToString()),
+                new KeyValuePair<string, string?>("Eventing:EnableBackgroundDispatcher", bool.FalseString)
+            ]);
+        });
 
         builder.ConfigureServices(services =>
         {
@@ -54,20 +54,20 @@ public sealed class SqliteBookFastApiFactory : WebApplicationFactory<Program>
             services.AddDbContext<BookFastDbContext>(options =>
             {
                 options.UseSqlite(this._connection);
-    });
+            });
             services.AddScoped<IBookFastCatalog, SqlBookFastCatalog>();
 
             using ServiceProvider serviceProvider = services.BuildServiceProvider();
             using IServiceScope scope = serviceProvider.CreateScope();
             BookFastDbContext dbContext = scope.ServiceProvider.GetRequiredService<BookFastDbContext>();
-dbContext.Database.EnsureDeleted();
+            dbContext.Database.EnsureDeleted();
             dbContext.Database.EnsureCreated();
         });
     }
 
     public override async ValueTask DisposeAsync()
-{
-    await this._connection.DisposeAsync();
-    await base.DisposeAsync();
-}
+    {
+        await this._connection.DisposeAsync();
+        await base.DisposeAsync();
+    }
 }

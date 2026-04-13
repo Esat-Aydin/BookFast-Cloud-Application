@@ -37,16 +37,20 @@ builder.Services.Configure<ApiCorsOptions>(
     builder.Configuration.GetSection(ApiCorsOptions.SectionName));
 builder.Services.Configure<BookFastDatabaseOptions>(
     builder.Configuration.GetSection(BookFastDatabaseOptions.SectionName));
-string? connectionString = builder.Configuration.GetConnectionString(BookFastDatabaseOptions.ConnectionStringName);
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    throw new InvalidOperationException(
-        $"Connection string '{BookFastDatabaseOptions.ConnectionStringName}' is required.");
-}
 
 ApiCorsOptions corsOptions = builder.Configuration.GetSection(ApiCorsOptions.SectionName).Get<ApiCorsOptions>() ?? new ApiCorsOptions();
-builder.Services.AddDbContext<BookFastDbContext>(options =>
+builder.Services.AddDbContext<BookFastDbContext>((serviceProvider, options) =>
 {
+    string? connectionString = serviceProvider
+        .GetRequiredService<IConfiguration>()
+        .GetConnectionString(BookFastDatabaseOptions.ConnectionStringName);
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            $"Connection string '{BookFastDatabaseOptions.ConnectionStringName}' is required.");
+    }
+
     options.UseSqlServer(
         connectionString,
         sqlServerOptions =>
@@ -112,6 +116,7 @@ builder.Services
 
 WebApplication app = builder.Build();
 
+ValidateDatabaseConfiguration(app);
 await ApplyDatabaseMigrationsAsync(app);
 
 app.UseMiddleware<CorrelationIdMiddleware>();
@@ -174,6 +179,12 @@ static async Task ApplyDatabaseMigrationsAsync(WebApplication app)
 
     logger.LogInformation("Applying BookFast database migrations at startup.");
     await dbContext.Database.MigrateAsync();
+}
+
+static void ValidateDatabaseConfiguration(WebApplication app)
+{
+    using IServiceScope scope = app.Services.CreateScope();
+    _ = scope.ServiceProvider.GetRequiredService<BookFastDbContext>();
 }
 
 public partial class Program;
