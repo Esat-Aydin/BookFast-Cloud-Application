@@ -163,3 +163,28 @@ Detailed environment setup and rollout guidance lives in the workflow files and 
 - `feature/<name>`: feature work branched from `develop`
 
 Use Conventional Commits for local history and pull requests.
+
+## GitHub deployment environment setup
+
+Configure the deployment environment such as `dev` with these secrets:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+Configure these GitHub Environment variables so `app-deploy.yml` can run without repeatedly filling the workflow form:
+
+- `KEY_VAULT_NAME`
+- `RESOURCE_GROUP_NAME`
+- `API_APP_NAME`
+- `FUNCTION_APP_NAME`
+- `SERVICE_BUS_TOPIC_NAME`
+- `SERVICE_BUS_SUBSCRIPTION_NAME`
+- `API_HEALTH_CHECK_URL` (optional)
+
+Keep the runtime secrets in Azure Key Vault with these names:
+
+- `apiSqlConnectionString`
+- `apiServiceBusConnectionString`
+- `functionSqlConnectionString`
+- `functionServiceBusConnectionString`
