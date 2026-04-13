@@ -12,37 +12,6 @@ on:
           - test
           - prod
         default: dev
-      key_vault_name:
-        description: Azure Key Vault name containing the runtime configuration secrets.
-        required: true
-        type: string
-      resource_group_name:
-        description: Azure resource group containing the API and Function App.
-        required: true
-        type: string
-      api_app_name:
-        description: Azure App Service name for the BookFast API.
-        required: true
-        type: string
-      function_app_name:
-        description: Azure Function App name for BookFast.Reporting.Functions.
-        required: true
-        type: string
-      service_bus_topic_name:
-        description: Service Bus topic used by the outbox publisher.
-        required: true
-        type: string
-        default: bookfast.integration
-      service_bus_subscription_name:
-        description: Service Bus subscription consumed by the reporting function.
-        required: true
-        type: string
-        default: reporting
-      api_health_check_url:
-        description: Optional health endpoint for a post-deploy smoke test.
-        required: false
-        type: string
-        default: ""
       deploy_api:
         description: Build and deploy the API.
         required: true
@@ -151,16 +120,12 @@ jobs:
       - name: Publish Functions
         run: dotnet publish src/functions/BookFast.Reporting.Functions/BookFast.Reporting.Functions.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --output "${RUNNER_TEMP}/functions-published" --no-restore
 
-      - name: Archive Functions package
-        run: |
-          cd "${RUNNER_TEMP}/functions-published"
-          zip -r "${RUNNER_TEMP}/functions-package.zip" .
-
       - name: Upload Functions package
         uses: actions/upload-artifact@v4
         with:
           name: functions-package
-          path: ${{ runner.temp }}/functions-package.zip
+          path: ${{ runner.temp }}/functions-published
+          include-hidden-files: true
           retention-days: 5
 
   deploy-api:
@@ -176,6 +141,23 @@ jobs:
         with:
           name: api-package
           path: ${{ runner.temp }}
+
+      - name: Validate deployment variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+
+          [ -n "${{ vars.KEY_VAULT_NAME }}" ] || missing+=("KEY_VAULT_NAME")
+          [ -n "${{ vars.RESOURCE_GROUP_NAME }}" ] || missing+=("RESOURCE_GROUP_NAME")
+          [ -n "${{ vars.API_APP_NAME }}" ] || missing+=("API_APP_NAME")
+          [ -n "${{ vars.SERVICE_BUS_TOPIC_NAME }}" ] || missing+=("SERVICE_BUS_TOPIC_NAME")
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Missing required GitHub Environment variables: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
 
       - name: Azure login
         uses: azure/login@v2
@@ -194,7 +176,7 @@ jobs:
           fetch_secret() {
             local secret_name="$1"
             local secret_value
-            secret_value="$(az keyvault secret show --vault-name "${{ inputs.key_vault_name }}" --name "$secret_name" --query value -o tsv)"
+            secret_value="$(az keyvault secret show --vault-name "${{ vars.KEY_VAULT_NAME }}" --name "$secret_name" --query value -o tsv)"
             echo "::add-mask::$secret_value"
             printf '%s' "$secret_value"
           }
@@ -204,14 +186,14 @@ jobs:
 
           settings=(
             "Eventing__Mode=ServiceBus"
-            "Eventing__ServiceBusTopicName=${{ inputs.service_bus_topic_name }}"
+            "Eventing__ServiceBusTopicName=${{ vars.SERVICE_BUS_TOPIC_NAME }}"
             "ConnectionStrings__BookFastDatabase=${api_sql_connection_string}"
             "ConnectionStrings__BookFastServiceBus=${api_service_bus_connection_string}"
           )
 
           az webapp config appsettings set \
-            --resource-group "${{ inputs.resource_group_name }}" \
-            --name "${{ inputs.api_app_name }}" \
+            --resource-group "${{ vars.RESOURCE_GROUP_NAME }}" \
+            --name "${{ vars.API_APP_NAME }}" \
             --settings "${settings[@]}" \
             --output none
 
@@ -223,16 +205,16 @@ jobs:
           set -euo pipefail
 
           az webapp deploy \
-            --resource-group "${{ inputs.resource_group_name }}" \
-            --name "${{ inputs.api_app_name }}" \
+            --resource-group "${{ vars.RESOURCE_GROUP_NAME }}" \
+            --name "${{ vars.API_APP_NAME }}" \
             --src-path "${RUNNER_TEMP}/api-package.zip" \
             --type zip \
             --clean true \
             --output none
 
       - name: Smoke test API health endpoint
-        if: ${{ inputs.api_health_check_url != '' }}
-        run: curl --fail --silent --show-error "${{ inputs.api_health_check_url }}"
+        if: ${{ vars.API_HEALTH_CHECK_URL != '' }}
+        run: curl --fail --silent --show-error "${{ vars.API_HEALTH_CHECK_URL }}"
 
   deploy-functions:
     name: Deploy Functions
@@ -246,7 +228,25 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: functions-package
-          path: ${{ runner.temp }}
+          path: ${{ runner.temp }}/functions-package
+
+      - name: Validate deployment variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+
+          [ -n "${{ vars.KEY_VAULT_NAME }}" ] || missing+=("KEY_VAULT_NAME")
+          [ -n "${{ vars.RESOURCE_GROUP_NAME }}" ] || missing+=("RESOURCE_GROUP_NAME")
+          [ -n "${{ vars.FUNCTION_APP_NAME }}" ] || missing+=("FUNCTION_APP_NAME")
+          [ -n "${{ vars.SERVICE_BUS_TOPIC_NAME }}" ] || missing+=("SERVICE_BUS_TOPIC_NAME")
+          [ -n "${{ vars.SERVICE_BUS_SUBSCRIPTION_NAME }}" ] || missing+=("SERVICE_BUS_SUBSCRIPTION_NAME")
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Missing required GitHub Environment variables: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
 
       - name: Azure login
         uses: azure/login@v2
@@ -265,7 +265,7 @@ jobs:
           fetch_secret() {
             local secret_name="$1"
             local secret_value
-            secret_value="$(az keyvault secret show --vault-name "${{ inputs.key_vault_name }}" --name "$secret_name" --query value -o tsv)"
+            secret_value="$(az keyvault secret show --vault-name "${{ vars.KEY_VAULT_NAME }}" --name "$secret_name" --query value -o tsv)"
             echo "::add-mask::$secret_value"
             printf '%s' "$secret_value"
           }
@@ -274,27 +274,22 @@ jobs:
           function_service_bus_connection_string="$(fetch_secret functionServiceBusConnectionString)"
 
           settings=(
-            "ServiceBus__TopicName=${{ inputs.service_bus_topic_name }}"
-            "ServiceBus__SubscriptionName=${{ inputs.service_bus_subscription_name }}"
+            "ServiceBus__TopicName=${{ vars.SERVICE_BUS_TOPIC_NAME }}"
+            "ServiceBus__SubscriptionName=${{ vars.SERVICE_BUS_SUBSCRIPTION_NAME }}"
             "ConnectionStrings__BookFastDatabase=${function_sql_connection_string}"
             "BookFastServiceBus=${function_service_bus_connection_string}"
           )
 
           az functionapp config appsettings set \
-            --resource-group "${{ inputs.resource_group_name }}" \
-            --name "${{ inputs.function_app_name }}" \
+            --resource-group "${{ vars.RESOURCE_GROUP_NAME }}" \
+            --name "${{ vars.FUNCTION_APP_NAME }}" \
             --settings "${settings[@]}" \
             --output none
 
       - name: Deploy Functions package
-        shell: bash
-        env:
-          AZURE_CORE_OUTPUT: none
-        run: |
-          set -euo pipefail
-
-          az functionapp deployment source config-zip \
-            --resource-group "${{ inputs.resource_group_name }}" \
-            --name "${{ inputs.function_app_name }}" \
-            --src "${RUNNER_TEMP}/functions-package.zip" \
-            --output none
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ vars.FUNCTION_APP_NAME }}
+          package: ${{ runner.temp }}/functions-package
+          sku: flexconsumption
+          remote-build: false
