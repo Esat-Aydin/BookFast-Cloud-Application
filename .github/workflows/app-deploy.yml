@@ -120,16 +120,11 @@ jobs:
       - name: Publish Functions
         run: dotnet publish src/functions/BookFast.Reporting.Functions/BookFast.Reporting.Functions.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --output "${RUNNER_TEMP}/functions-published" --no-restore
 
-      - name: Archive Functions package
-        run: |
-          cd "${RUNNER_TEMP}/functions-published"
-          zip -r "${RUNNER_TEMP}/functions-package.zip" .
-
       - name: Upload Functions package
         uses: actions/upload-artifact@v4
         with:
           name: functions-package
-          path: ${{ runner.temp }}/functions-package.zip
+          path: ${{ runner.temp }}/functions-published
           retention-days: 5
 
   deploy-api:
@@ -232,7 +227,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: functions-package
-          path: ${{ runner.temp }}
+          path: ${{ runner.temp }}/functions-package
 
       - name: Validate deployment variables
         shell: bash
@@ -291,14 +286,8 @@ jobs:
             --output none
 
       - name: Deploy Functions package
-        shell: bash
-        env:
-          AZURE_CORE_OUTPUT: none
-        run: |
-          set -euo pipefail
-
-          az functionapp deployment source config-zip \
-            --resource-group "${{ vars.RESOURCE_GROUP_NAME }}" \
-            --name "${{ vars.FUNCTION_APP_NAME }}" \
-            --src "${RUNNER_TEMP}/functions-package.zip" \
-            --output none
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ vars.FUNCTION_APP_NAME }}
+          package: ${{ runner.temp }}/functions-package
+          remote-build: false
